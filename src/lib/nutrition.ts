@@ -1,4 +1,4 @@
-import type { Nutrition, Receipt, ReceiptItem, ReceiptItemAnalysis } from './types';
+import type { Nutrition, Receipt, RecipeBatch, ReceiptItem, ReceiptItemAnalysis } from './types';
 
 export const EMPTY_NUTRITION: Nutrition = {
   kcal: 0,
@@ -112,4 +112,9 @@ export function relativeDay(iso: string, now = new Date()) {
 export function money(value: number, currency: string | null) {
   const symbol = !currency || /eur|€/i.test(currency) ? '€' : currency;
   return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+}
+
+/** Saved recipe ideas only count while the dietary preferences they were made for still apply. */
+export function recipesMatchDiet(batch: RecipeBatch | null, diet: string) {
+  return !!batch && (batch.diet ?? '').trim().toLowerCase() === diet.trim().toLowerCase();
 }

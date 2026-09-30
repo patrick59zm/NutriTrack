@@ -21,7 +21,7 @@ import { Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { describeError, suggestRecipes } from '@/lib/claude';
 import { failure, success } from '@/lib/haptics';
-import { pantryFrom, receiptsWithin } from '@/lib/nutrition';
+import { pantryFrom, receiptsWithin, recipesMatchDiet } from '@/lib/nutrition';
 import { loadDemoData, loadReceipts, loadRecipes, loadSettings, saveRecipes, saveSettings } from '@/lib/storage';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 
@@ -43,7 +43,10 @@ export default function RecipesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  const { receipts, batch, settings } = data;
+  const { receipts, batch: saved, settings } = data;
+  // Ideas made for other dietary preferences are hidden until new ones are suggested.
+  const batch = recipesMatchDiet(saved, settings.diet) ? saved : null;
+  const staleForDiet = !!saved && !batch;
   const windowDays = settings.recipeWindowDays;
   const pantry = pantryFrom(receipts, windowDays);
   const urgentCount = pantry.filter((p) => p.daysLeft <= 3).length;
@@ -63,9 +66,9 @@ export default function RecipesScreen() {
         language: settings.language,
         diet: settings.diet,
       });
-      const next = { createdAt: new Date().toISOString(), windowDays, recipes };
+      const next = { createdAt: new Date().toISOString(), windowDays, diet: settings.diet, recipes };
       await saveRecipes(next);
-      setData({ ...data, batch: next });
+      setData((d) => ({ ...d, batch: next }));
       success();
     } catch (e) {
       failure();
@@ -157,6 +160,17 @@ export default function RecipesScreen() {
       </Animated.View>
 
       <Banner message={error} onDismiss={() => setError(null)} />
+      {staleForDiet && !busy && (
+        <Banner
+          tone="warn"
+          icon="leaf-outline"
+          message={
+            settings.diet
+              ? `Your dietary preferences changed. Tap Suggest recipes for ideas that fit: ${settings.diet}.`
+              : 'Your dietary preferences changed. Tap Suggest recipes for new ideas.'
+          }
+        />
+      )}
 
       {busy && (
         <View style={styles.list}>

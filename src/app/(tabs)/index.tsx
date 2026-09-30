@@ -29,8 +29,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { analyzeReceipt, describeError } from '@/lib/claude';
 import { DEMO_MODE } from '@/lib/config';
 import { failure, success } from '@/lib/haptics';
-import { prepareReceiptImage } from '@/lib/image';
-import { money, pantryFrom, receiptsWithin, sum } from '@/lib/nutrition';
+import { prepareReceiptImages } from '@/lib/image';
+import { money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
 import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings, saveReceipt } from '@/lib/storage';
 
 const SUMMARY_DAYS = 7;
@@ -43,7 +43,14 @@ function greeting(now = new Date()) {
 }
 
 const loadHome = async () => {
-  const [receipts, recipes, apiKey] = await Promise.all([loadReceipts(), loadRecipes(), getApiKey()]);
+  const [receipts, batch, apiKey, settings] = await Promise.all([
+    loadReceipts(),
+    loadRecipes(),
+    getApiKey(),
+    loadSettings(),
+  ]);
+  // Ideas made for other dietary preferences are not offered.
+  const recipes = recipesMatchDiet(batch, settings.diet) ? batch : null;
   return { receipts, recipes, hasKey: !!apiKey };
 };
 
@@ -75,8 +82,8 @@ export default function TodayScreen() {
     setPreview(asset.uri);
     setBusy(true);
     try {
-      const [image, settings] = await Promise.all([prepareReceiptImage(asset), loadSettings()]);
-      const receipt = await analyzeReceipt(image, settings.language);
+      const [images, settings] = await Promise.all([prepareReceiptImages(asset), loadSettings()]);
+      const receipt = await analyzeReceipt(images, settings.language);
       await saveReceipt(receipt);
       success();
       router.push({ pathname: '/receipt/[id]', params: { id: receipt.id, fresh: '1' } });
@@ -140,7 +147,7 @@ export default function TodayScreen() {
         <Banner
           tone="warn"
           icon="flask-outline"
-          message="Demo version: any photo you upload returns a sample receipt analysis."
+          message="Demo version: allow Claude when asked and it reads your own receipt on your Claude account. Otherwise you get a sample result."
         />
       )}
 

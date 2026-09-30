@@ -104,6 +104,8 @@ export const RecipeSuggestionsSchema = z.object({ recipes: z.array(RecipeSchema)
 export type RecipeBatch = {
   createdAt: string;
   windowDays: number;
+  /** Dietary preferences the recipes were made for; ideas are stale once they change. */
+  diet?: string;
   recipes: Recipe[];
 };
 
