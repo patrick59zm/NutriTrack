@@ -42,8 +42,11 @@ export function macroSplit(n: Nutrition) {
   return { protein: p / total, carbs: c / total, fat: f / total };
 }
 
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** Whole calendar days between the date and now (0 = today, 1 = yesterday). */
 export function daysSince(iso: string, now = new Date()) {
-  return Math.floor((now.getTime() - new Date(iso).getTime()) / 86_400_000);
+  return Math.round((startOfDay(now) - startOfDay(new Date(iso))) / 86_400_000);
 }
 
 export function receiptsWithin(receipts: Receipt[], days: number, now = new Date()) {
@@ -52,4 +55,61 @@ export function receiptsWithin(receipts: Receipt[], days: number, now = new Date
 
 export function fmt(n: number, digits = 0) {
   return n.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+}
+
+export type PantryItem = {
+  name: string;
+  emoji?: string;
+  category: string;
+  grams: number;
+  boughtDaysAgo: number;
+  daysLeft: number;
+  receiptId: string;
+};
+
+/** Food bought within the window, most urgent (fewest days left) first. */
+export function pantryFrom(receipts: Receipt[], windowDays: number, now = new Date()): PantryItem[] {
+  return receiptsWithin(receipts, windowDays, now)
+    .flatMap((r) => {
+      const age = daysSince(r.purchasedAt, now);
+      return r.items
+        .filter((i) => i.is_food)
+        .map((i) => ({
+          name: i.name,
+          emoji: i.emoji,
+          category: i.category,
+          grams: i.total_weight_g,
+          boughtDaysAgo: age,
+          daysLeft: Math.round(i.shelf_life_days) - age,
+          receiptId: r.id,
+        }));
+    })
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+export function freshnessLabel(daysLeft: number) {
+  if (daysLeft < 0) return 'Check it';
+  if (daysLeft === 0) return 'Today';
+  if (daysLeft === 1) return '1 day';
+  if (daysLeft > 60) return 'Months';
+  return `${daysLeft} days`;
+}
+
+export function freshnessTone(daysLeft: number): 'danger' | 'warn' | 'brand' {
+  if (daysLeft <= 1) return 'danger';
+  if (daysLeft <= 3) return 'warn';
+  return 'brand';
+}
+
+export function relativeDay(iso: string, now = new Date()) {
+  const d = daysSince(iso, now);
+  if (d <= 0) return 'Today';
+  if (d === 1) return 'Yesterday';
+  if (d < 7) return new Date(iso).toLocaleDateString(undefined, { weekday: 'long' });
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+export function money(value: number, currency: string | null) {
+  const symbol = !currency || /eur|€/i.test(currency) ? '€' : currency;
+  return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
 }

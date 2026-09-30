@@ -1,11 +1,13 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router/js-tabs';
-import { Text } from 'react-native';
+import { Platform, StyleSheet, type ColorValue } from 'react-native';
 
+import type { IconName } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 
-const icon = (glyph: string) =>
-  function TabIcon({ focused }: { focused: boolean }) {
-    return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{glyph}</Text>;
+const icon = (name: IconName, focusedName: IconName) =>
+  function TabIcon({ focused, color }: { focused: boolean; color: ColorValue }) {
+    return <Ionicons name={focused ? focusedName : name} size={24} color={color} />;
   };
 
 export default function TabLayout() {
@@ -13,15 +15,21 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.accent,
-        tabBarStyle: { backgroundColor: theme.background },
-        headerStyle: { backgroundColor: theme.background },
-        headerTintColor: theme.text,
+        headerShown: false,
+        tabBarActiveTintColor: theme.brand,
+        tabBarInactiveTintColor: theme.textTertiary,
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          ...(Platform.OS === 'web' && { height: 70, paddingTop: 6, paddingBottom: 10 }),
+        },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Scan', tabBarIcon: icon('📷') }} />
-      <Tabs.Screen name="history" options={{ title: 'History', tabBarIcon: icon('🧾') }} />
-      <Tabs.Screen name="recipes" options={{ title: 'Recipes', tabBarIcon: icon('🍳') }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: icon('⚙️') }} />
+      <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: icon('scan-outline', 'scan') }} />
+      <Tabs.Screen name="history" options={{ title: 'Receipts', tabBarIcon: icon('receipt-outline', 'receipt') }} />
+      <Tabs.Screen name="recipes" options={{ title: 'Recipes', tabBarIcon: icon('restaurant-outline', 'restaurant') }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: icon('settings-outline', 'settings') }} />
     </Tabs>
   );
 }

@@ -31,6 +31,7 @@ export const CATEGORIES = [
 export const ReceiptItemSchema = z.object({
   receipt_text: z.string().describe('The line exactly as printed on the receipt'),
   name: z.string().describe('Readable product name, e.g. "Vollmilch 3,5%" or "Bananas"'),
+  emoji: z.string().describe('One emoji that best depicts this product, e.g. 🍌 for bananas'),
   category: z.string().describe(`One of: ${CATEGORIES.join(', ')}`),
   is_food: z.boolean().describe('false for deposits (Pfand), bags, household goods, cosmetics'),
   quantity: z.number().describe('Number of units bought'),
@@ -77,6 +78,7 @@ export type Receipt = {
 
 export const RecipeSchema = z.object({
   title: z.string(),
+  emoji: z.string().describe('One food emoji that best represents the finished dish'),
   description: z.string(),
   time_minutes: z.number(),
   servings: z.number(),

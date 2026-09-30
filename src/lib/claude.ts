@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 
+import { DEMO_MODE } from './config';
+import { demoRecipesFor, demoScanAnalysis } from './demo';
 import type { PreparedImage } from './image';
 import { daysSince, withTotals, sum } from './nutrition';
 import { getApiKey } from './storage';
@@ -9,6 +11,7 @@ import {
   RecipeSuggestionsSchema,
   type Language,
   type Receipt,
+  type ReceiptAnalysis,
   type Recipe,
 } from './types';
 
@@ -50,6 +53,32 @@ For every purchased line:
 If the image is not a receipt, set is_receipt=false and return no items.`;
 
 export async function analyzeReceipt(image: PreparedImage, language: Language): Promise<Receipt> {
+  const analysis = DEMO_MODE ? await demoScanAnalysis() : await requestAnalysis(image, language);
+  if (!analysis.is_receipt || analysis.items.length === 0) {
+    throw new Error('No receipt found in this photo. Try again with the whole receipt in view.');
+  }
+
+  const now = new Date();
+  const items = analysis.items.map(withTotals);
+  const purchased = parseLocalDate(analysis.purchase_date);
+  // Guard against misread dates (future or implausibly old).
+  const age = purchased && !isNaN(purchased.getTime()) ? daysSince(purchased.toISOString(), now) : -1;
+  const validDate = age >= 0 && age < 365;
+
+  return {
+    id: `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+    purchasedAt: (validDate && purchased ? purchased : now).toISOString(),
+    scannedAt: now.toISOString(),
+    store: analysis.store,
+    currency: analysis.currency,
+    totalPrice: analysis.total_price,
+    notes: analysis.notes,
+    items,
+    totals: sum(items.map((i) => i.nutrition_total)),
+  };
+}
+
+async function requestAnalysis(image: PreparedImage, language: Language): Promise<ReceiptAnalysis> {
   const anthropic = await client();
   const response = await anthropic.beta.messages.parse({
     model: MODEL,
@@ -75,28 +104,7 @@ export async function analyzeReceipt(image: PreparedImage, language: Language): 
   if (response.stop_reason === 'max_tokens') throw new Error('The receipt was too long to analyze in one go.');
   const analysis = response.parsed_output;
   if (!analysis) throw new Error('Could not read the analysis. Please try again.');
-  if (!analysis.is_receipt || analysis.items.length === 0) {
-    throw new Error('No receipt found in this photo. Try again with the whole receipt in view.');
-  }
-
-  const now = new Date();
-  const items = analysis.items.map(withTotals);
-  const purchased = analysis.purchase_date ? new Date(analysis.purchase_date) : null;
-  // Guard against misread dates (future or implausibly old).
-  const validDate =
-    purchased && !isNaN(purchased.getTime()) && purchased <= now && daysSince(purchased.toISOString(), now) < 365;
-
-  return {
-    id: `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-    purchasedAt: (validDate ? purchased : now).toISOString(),
-    scannedAt: now.toISOString(),
-    store: analysis.store,
-    currency: analysis.currency,
-    totalPrice: analysis.total_price,
-    notes: analysis.notes,
-    items,
-    totals: sum(items.map((i) => i.nutrition_total)),
-  };
+  return analysis;
 }
 
 const RECIPE_SYSTEM = `You are a practical home cook. You suggest recipes that use up groceries the user recently bought.
@@ -126,6 +134,7 @@ export async function suggestRecipes(opts: {
       })),
   );
   if (pantry.length === 0) throw new Error('No food items in the selected time window yet.');
+  if (DEMO_MODE) return demoRecipesFor(pantry.map((p) => p.name));
 
   const anthropic = await client();
   const response = await anthropic.beta.messages.parse({
@@ -150,6 +159,13 @@ Suggest ${opts.count ?? 4} varied recipes. Write everything in ${languageName(op
   const result = response.parsed_output;
   if (!result) throw new Error('Could not read the recipe suggestions. Please try again.');
   return result.recipes;
+}
+
+/** "2026-09-29" -> local noon that day, so the date never shifts across time zones. */
+function parseLocalDate(value: string | null) {
+  const m = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
 }
 
 export function describeError(e: unknown): string {
