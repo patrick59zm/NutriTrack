@@ -1,5 +1,4 @@
 import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
-import type { ImagePickerAsset } from 'expo-image-picker';
 
 export type PreparedImage = { base64: string; mediaType: 'image/jpeg' };
 
@@ -11,10 +10,10 @@ const MAX_TILE_ASPECT = 1.5; // height / width of one section
 const OVERLAP = 0.08; // share of a section repeated in the next one
 const MAX_TILES = 5;
 
-export async function prepareReceiptImages(asset: ImagePickerAsset): Promise<PreparedImage[]> {
+export async function prepareReceiptImages(uri: string): Promise<PreparedImage[]> {
   // Decode once so width and height match the upright image (the picker's values can
   // ignore EXIF rotation), then cut sections from that decoded image.
-  const source = await ImageManipulator.manipulate(asset.uri).renderAsync();
+  const source = await ImageManipulator.manipulate(uri).renderAsync();
   const { width, height } = source;
   const aspect = height / width;
   const tiles = aspect <= MAX_TILE_ASPECT ? 1 : Math.min(MAX_TILES, Math.ceil(aspect / MAX_TILE_ASPECT));

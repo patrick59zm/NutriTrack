@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { ImageFileInput } from '@/components/image-file-input';
 import { NutritionPanel } from '@/components/nutrition-summary';
 import { PantryStrip } from '@/components/pantry';
 import { ReceiptRow } from '@/components/receipt-row';
@@ -62,27 +63,12 @@ export default function TodayScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const pick = useCallback(async (source: 'camera' | 'library') => {
+  const analyzePhoto = useCallback(async (uri: string) => {
     setError(null);
-    if (source === 'camera') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Camera access needed', 'Allow camera access in Settings to photograph receipts.');
-        return;
-      }
-    }
-    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options);
-    if (result.canceled || !result.assets[0]) return;
-
-    const asset = result.assets[0];
-    setPreview(asset.uri);
+    setPreview(uri);
     setBusy(true);
     try {
-      const [images, settings] = await Promise.all([prepareReceiptImages(asset), loadSettings()]);
+      const [images, settings] = await Promise.all([prepareReceiptImages(uri), loadSettings()]);
       const receipt = await analyzeReceipt(images, settings.language);
       await saveReceipt(receipt);
       success();
@@ -93,8 +79,29 @@ export default function TodayScreen() {
     } finally {
       setBusy(false);
       setPreview(null);
+      if (uri.startsWith('blob:')) URL.revokeObjectURL(uri);
     }
   }, []);
+
+  const pick = useCallback(
+    async (source: 'camera' | 'library') => {
+      setError(null);
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Camera access needed', 'Allow camera access in Settings to photograph receipts.');
+          return;
+        }
+      }
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync(options);
+      if (!result.canceled && result.assets[0]) await analyzePhoto(result.assets[0].uri);
+    },
+    [analyzePhoto],
+  );
 
   const { receipts, recipes, hasKey } = data;
   const recent = receiptsWithin(receipts, SUMMARY_DAYS);
@@ -131,12 +138,13 @@ export default function TodayScreen() {
               </View>
             )}
             <View style={styles.flex}>
-              <Button
-                title={Platform.OS === 'web' ? 'Upload receipt photo' : 'Gallery'}
-                icon={Platform.OS === 'web' ? 'cloud-upload-outline' : 'images-outline'}
-                variant={Platform.OS === 'web' ? 'onBrand' : 'onBrandGhost'}
-                onPress={() => pick('library')}
-              />
+              {Platform.OS === 'web' ? (
+                <ImageFileInput onPick={analyzePhoto}>
+                  <Button title="Upload receipt photo" icon="cloud-upload-outline" variant="onBrand" onPress={() => {}} />
+                </ImageFileInput>
+              ) : (
+                <Button title="Gallery" icon="images-outline" variant="onBrandGhost" onPress={() => pick('library')} />
+              )}
             </View>
           </View>
         </LinearGradient>
