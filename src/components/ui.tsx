@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     borderRadius: Radius.md,
   },
-  statTile: { flex: 1, minWidth: 70, borderRadius: Radius.md, padding: Spacing.three, gap: 2 },
+  statTile: { flex: 1, minWidth: 64, borderRadius: Radius.md, padding: Spacing.three, gap: 2 },
   statLabel: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   empty: { alignItems: 'center', paddingVertical: Spacing.eight, gap: Spacing.two },
   emptyEmoji: { fontSize: 48, lineHeight: 58 },
