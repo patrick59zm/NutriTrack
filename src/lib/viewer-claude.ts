@@ -36,6 +36,27 @@ export async function viewerClaude(): Promise<ViewerClaude | null> {
   }
 }
 
+/** Why the viewer's Claude could not be used, in words for the person using the demo. */
+export const NO_CLAUDE_HERE =
+  'This page can’t reach Claude here. Open the demo on claude.ai in a browser, or use the app with your API key.';
+export const NO_PHOTOS_HERE =
+  'Claude on this page can’t receive photos in this app or browser. Try the demo in a desktop browser, or use the app with your API key.';
+
+export function unavailableReason(e: unknown) {
+  switch ((e as SampleError)?.code) {
+    case 'not_granted':
+      return 'Claude wasn’t allowed for this page, so nothing was sent. Reload the page and choose Allow when asked.';
+    case 'sampling_disabled':
+      return 'Claude isn’t available for your account on this page.';
+    case 'session_expired':
+      return 'Your Claude session expired. Sign in again and reload the page.';
+    case 'images_unavailable':
+      return NO_PHOTOS_HERE;
+    default:
+      return NO_CLAUDE_HERE;
+  }
+}
+
 export function isUnavailable(e: unknown) {
   return UNAVAILABLE.has((e as SampleError)?.code ?? '');
 }

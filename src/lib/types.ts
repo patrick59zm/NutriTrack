@@ -74,6 +74,8 @@ export type Receipt = {
   notes: string | null;
   items: ReceiptItem[];
   totals: Nutrition;
+  /** Demo build only: set when a sample was shown instead of reading the photo, with the reason. */
+  sampleReason?: string;
 };
 
 export const RecipeSchema = z.object({
@@ -107,6 +109,8 @@ export type RecipeBatch = {
   /** Dietary preferences the recipes were made for; ideas are stale once they change. */
   diet?: string;
   recipes: Recipe[];
+  /** Demo build only: set when sample ideas were shown instead of asking Claude, with the reason. */
+  sampleReason?: string;
 };
 
 export type Language = 'en' | 'de';

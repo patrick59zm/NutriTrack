@@ -61,12 +61,18 @@ export default function RecipesScreen() {
     setError(null);
     setBusy(true);
     try {
-      const recipes = await suggestRecipes({
+      const { recipes, sampleReason } = await suggestRecipes({
         receipts: receiptsWithin(receipts, windowDays),
         language: settings.language,
         diet: settings.diet,
       });
-      const next = { createdAt: new Date().toISOString(), windowDays, diet: settings.diet, recipes };
+      const next = {
+        createdAt: new Date().toISOString(),
+        windowDays,
+        diet: settings.diet,
+        recipes,
+        ...(sampleReason && { sampleReason }),
+      };
       await saveRecipes(next);
       setData((d) => ({ ...d, batch: next }));
       success();
@@ -190,6 +196,9 @@ export default function RecipesScreen() {
               </ThemedText>
             }
           />
+          {batch.sampleReason && (
+            <Banner tone="warn" icon="flask-outline" message={`Sample ideas, not from Claude. ${batch.sampleReason}`} />
+          )}
           {batch.recipes.map((r, i) => (
             <Animated.View key={`${r.title}-${i}`} entering={FadeInDown.duration(400).delay(70 * i)}>
               <RecipeCard recipe={r} index={i} />

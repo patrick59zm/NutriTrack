@@ -501,8 +501,7 @@ export async function demoScanAnalysis(): Promise<ReceiptAnalysis> {
     purchase_date: isoToday(),
     currency: 'EUR',
     total_price: 22.03,
-    notes:
-      'This is a sample result, not your photo. Allow Claude for this page when asked to have your own receipt read.',
+    notes: null,
     items: [
       {
         receipt_text: 'BIO HAFERMILCH 1L',

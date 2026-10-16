@@ -14,6 +14,16 @@ Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the rec
 
 Light and dark mode follow the device setting.
 
+## Install on Android
+
+Every push to `main` (and to the development branch) builds an installable Android app on GitHub and publishes it under [Releases](https://github.com/patrick59zm/NutriTrack/releases).
+
+1. On your Android phone, open the newest release and tap **NutriTrack.apk**.
+2. Open the downloaded file. Android asks to allow installs from your browser the first time; allow it, then tap **Install**.
+3. Open NutriTrack, go to **Settings** and paste your Anthropic API key.
+
+Newer builds install over the old one and keep your receipts. The APK is signed with a development key: fine for installing directly, not for the Play Store. The workflow is in `.github/workflows/android.yml`.
+
 ## Run it
 
 ```bash
@@ -35,7 +45,7 @@ npm run lint
 
 ## Demo build
 
-`npm run export:demo` builds a web version into `dist-demo/` that preloads sample data and answers scans and recipe requests with sample results. It needs no API key and makes no network calls, so it can be shared as a clickable demo. The switch is the `EXPO_PUBLIC_DEMO=1` environment variable, which is inlined at build time. Regular builds never contain demo behavior.
+`npm run export:demo` builds a web version into `dist-demo/` that preloads sample data. Hosted as a claude.ai artifact it reads photos and writes recipes with the viewer's own Claude; where that is unavailable it shows sample results and says why. It needs no API key, so it can be shared as a clickable demo. The switch is the `EXPO_PUBLIC_DEMO=1` environment variable, which is inlined at build time. Regular builds never contain demo behavior.
 
 ## Project layout
 

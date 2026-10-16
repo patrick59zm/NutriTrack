@@ -15,7 +15,15 @@ import {
   type ReceiptAnalysis,
   type Recipe,
 } from './types';
-import { isUnavailable, toBlob, viewerClaude, viewerErrorMessage } from './viewer-claude';
+import {
+  isUnavailable,
+  NO_CLAUDE_HERE,
+  NO_PHOTOS_HERE,
+  toBlob,
+  unavailableReason,
+  viewerClaude,
+  viewerErrorMessage,
+} from './viewer-claude';
 
 const MODEL = 'claude-opus-5-5';
 
@@ -69,9 +77,9 @@ function receiptInstruction(imageCount: number, language: Language) {
 }
 
 export async function analyzeReceipt(images: PreparedImage[], language: Language): Promise<Receipt> {
-  const analysis = DEMO_MODE
+  const { analysis, sampleReason } = DEMO_MODE
     ? await analyzeWithViewerClaude(images, language)
-    : await requestAnalysis(images, language);
+    : { analysis: await requestAnalysis(images, language), sampleReason: undefined };
   if (!analysis.is_receipt || analysis.items.length === 0) {
     throw new Error('No receipt found in this photo. Try again with the whole receipt in view.');
   }
@@ -93,6 +101,7 @@ export async function analyzeReceipt(images: PreparedImage[], language: Language
     notes: analysis.notes,
     items,
     totals: sum(items.map((i) => i.nutrition_total)),
+    ...(sampleReason && { sampleReason }),
   };
 }
 
@@ -125,19 +134,28 @@ async function requestAnalysis(images: PreparedImage[], language: Language): Pro
   return analysis;
 }
 
-/** Demo build: read the photo with the viewer's own Claude when the page offers it. */
-async function analyzeWithViewerClaude(images: PreparedImage[], language: Language) {
+/**
+ * Demo build: read the photo with the viewer's own Claude when the page offers it. When it
+ * cannot, a sample receipt is shown together with the reason, never silently.
+ */
+async function analyzeWithViewerClaude(
+  images: PreparedImage[],
+  language: Language,
+): Promise<{ analysis: ReceiptAnalysis; sampleReason?: string }> {
   const claude = await viewerClaude();
-  const limits = claude && (await claude.limits().catch(() => null));
-  if (!claude || !limits?.images) return demoScanAnalysis();
+  if (!claude) return { analysis: await demoScanAnalysis(), sampleReason: NO_CLAUDE_HERE };
+  const limits = await claude.limits().catch(() => null);
+  if (!limits?.images) return { analysis: await demoScanAnalysis(), sampleReason: NO_PHOTOS_HERE };
 
   const sent = images.slice(0, limits.images.maxCount);
   const prompt = `${RECEIPT_SYSTEM}\n\n${receiptInstruction(sent.length, language)}\n\n${jsonInstruction(ReceiptAnalysisSchema)}`;
   try {
     const raw = await claude.json(prompt, { images: sent.map(toBlob), cache: false });
-    return parseLenient(ReceiptAnalysisSchema, raw, 'Could not read the receipt analysis. Please try again.');
+    return {
+      analysis: parseLenient(ReceiptAnalysisSchema, raw, 'Could not read the receipt analysis. Please try again.'),
+    };
   } catch (e) {
-    if (isUnavailable(e)) return demoScanAnalysis();
+    if (isUnavailable(e)) return { analysis: await demoScanAnalysis(), sampleReason: unavailableReason(e) };
     if (e instanceof Error) throw e;
     throw new Error(viewerErrorMessage(e));
   }
@@ -145,6 +163,9 @@ async function analyzeWithViewerClaude(images: PreparedImage[], language: Langua
 
 // ---------------------------------------------------------------------------
 // Recipes
+
+/** `sampleReason` is set only in the demo build, when sample ideas stand in for Claude's. */
+export type RecipeSuggestions = { recipes: Recipe[]; sampleReason?: string };
 
 const RECIPE_SYSTEM = `You are a practical home cook. You suggest recipes that use up groceries the user recently bought.
 
@@ -160,7 +181,7 @@ export async function suggestRecipes(opts: {
   language: Language;
   diet: string;
   count?: number;
-}): Promise<Recipe[]> {
+}): Promise<RecipeSuggestions> {
   const now = new Date();
   const pantry = opts.receipts.flatMap((r) =>
     r.items
@@ -197,18 +218,24 @@ Suggest ${opts.count ?? 4} varied recipes. Write everything in ${languageName(op
   if (response.stop_reason === 'refusal') throw new Error('The request was declined. Try again.');
   const result = response.parsed_output;
   if (!result) throw new Error('Could not read the recipe suggestions. Please try again.');
-  return result.recipes;
+  return { recipes: result.recipes };
 }
 
-async function recipesWithViewerClaude(request: string, pantryNames: string[], diet: string) {
+async function recipesWithViewerClaude(
+  request: string,
+  pantryNames: string[],
+  diet: string,
+): Promise<RecipeSuggestions> {
   const claude = await viewerClaude();
-  if (!claude) return demoRecipesFor(pantryNames, diet);
+  if (!claude) return { recipes: await demoRecipesFor(pantryNames, diet), sampleReason: NO_CLAUDE_HERE };
   const prompt = `${RECIPE_SYSTEM}\n\n${request}\n\n${jsonInstruction(RecipeSuggestionsSchema)}`;
   try {
     const raw = await claude.json(prompt, { cache: false });
-    return parseLenient(RecipeSuggestionsSchema, raw, 'Could not read the recipe ideas. Please try again.').recipes;
+    return {
+      recipes: parseLenient(RecipeSuggestionsSchema, raw, 'Could not read the recipe ideas. Please try again.').recipes,
+    };
   } catch (e) {
-    if (isUnavailable(e)) return demoRecipesFor(pantryNames, diet);
+    if (isUnavailable(e)) return { recipes: await demoRecipesFor(pantryNames, diet), sampleReason: unavailableReason(e) };
     if (e instanceof Error) throw e;
     throw new Error(viewerErrorMessage(e));
   }

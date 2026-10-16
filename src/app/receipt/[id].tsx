@@ -73,7 +73,10 @@ export default function ReceiptScreen() {
         )}
       </Animated.View>
 
-      {showFresh && (
+      {receipt.sampleReason && (
+        <Banner tone="warn" icon="flask-outline" message={`Sample receipt, not your photo. ${receipt.sampleReason}`} />
+      )}
+      {showFresh && !receipt.sampleReason && (
         <Banner
           tone="brand"
           message={`Added ${food.length} food items to your kitchen`}
