@@ -147,6 +147,8 @@ export type ShoppingItem = {
 export type CookedMeal = { id: string; title: string; emoji: string; cookedAt: string };
 
 export type Language = 'en' | 'de';
+/** Which Claude model does the reading and writing: the best one, or a faster, cheaper one. */
+export type ModelChoice = 'best' | 'fast';
 export type Currency = 'EUR' | 'CHF' | 'USD' | 'GBP';
 
 export type Settings = {
@@ -163,6 +165,8 @@ export type Settings = {
   remindersEnabled: boolean;
   /** Hour of the day (0-23) for that notification. */
   reminderHour: number;
+  /** Claude model for scans, item estimates and recipes. */
+  model: ModelChoice;
 };
 
 /** Swiss devices start with francs, everyone else with euros; both can be changed in Settings. */
@@ -185,4 +189,5 @@ export const DEFAULT_SETTINGS: Settings = {
   maxCookMinutes: null,
   remindersEnabled: false,
   reminderHour: 17,
+  model: 'best',
 };

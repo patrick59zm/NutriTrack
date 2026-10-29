@@ -1,3 +1,4 @@
+import { germanName, localizeAnalysis, localizeBatch, localizeReceipt, localizeRecipe } from './demo-de';
 import { sum, withTotals } from './nutrition';
 import type {
   Nutrition,
@@ -72,6 +73,10 @@ function receipt(
 }
 
 export function demoReceipts(): Receipt[] {
+  return sampleReceipts().map(localizeReceipt);
+}
+
+function sampleReceipts(): Receipt[] {
   return [
     receipt('demo-rewe', 'REWE', 1, 24.63, [
       item(
@@ -358,6 +363,10 @@ export function demoReceipts(): Receipt[] {
 }
 
 export function demoRecipes(): RecipeBatch {
+  return localizeBatch(sampleBatch());
+}
+
+function sampleBatch(): RecipeBatch {
   return {
     createdAt: new Date().toISOString(),
     windowDays: 5,
@@ -495,6 +504,10 @@ function isoToday() {
 /** What a demo scan returns when the viewer's Claude is unavailable, whatever the photo. */
 export async function demoScanAnalysis(): Promise<ReceiptAnalysis> {
   await wait(6500);
+  return localizeAnalysis(sampleScan());
+}
+
+function sampleScan(): ReceiptAnalysis {
   return {
     is_receipt: true,
     store: 'Frischmarkt',
@@ -1030,9 +1043,29 @@ function fitsDiet(recipe: Recipe, diet: string) {
 export async function demoRecipesFor(pantryNames: string[], diet: string): Promise<Recipe[]> {
   await wait(4000);
   const pantry = new Set(pantryNames);
-  const matches = (r: Recipe) => r.uses_items.filter((i) => pantry.has(i)).length;
-  return [...SCAN_RECIPES, ...demoRecipes().recipes, ...VEGAN_RECIPES]
+  // The kitchen may hold the German names of the sample items.
+  const matches = (r: Recipe) => r.uses_items.filter((i) => pantry.has(i) || pantry.has(germanName(i))).length;
+  return allSampleRecipes()
     .filter((r) => fitsDiet(r, diet) && matches(r) >= 2)
     .sort((a, b) => matches(b) - matches(a))
-    .slice(0, 4);
+    .slice(0, 4)
+    .map(localizeRecipe);
+}
+
+/** Every sample recipe in English, for the checks that keep the translations complete. */
+export function allSampleRecipes(): Recipe[] {
+  return [...SCAN_RECIPES, ...sampleBatch().recipes, ...VEGAN_RECIPES];
+}
+
+/** Every sample item name in English, for the same checks. */
+export function allSampleItemNames(): string[] {
+  const names = new Set<string>();
+  for (const r of sampleReceipts()) for (const i of r.items) names.add(i.name);
+  for (const i of sampleScan().items) names.add(i.name);
+  for (const r of allSampleRecipes()) {
+    r.uses_items.forEach((n) => names.add(n));
+    r.extra_ingredients_needed.forEach((n) => names.add(n));
+    r.ingredients.forEach((i) => names.add(i.item));
+  }
+  return [...names];
 }

@@ -2,7 +2,7 @@
 
 Take a photo of a supermarket receipt (Kassenzettel). NutriTrack lists every product with its estimated nutrition, sums up the whole purchase, keeps a picture of what is in your kitchen, and suggests recipes that use what you bought in the last few days, starting with whatever spoils first.
 
-Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the receipts, estimates items you add by hand and writes the recipes. The interface is in English or German (Swiss spelling), and light and dark mode follow the device.
+Built with Expo (React Native, SDK 57). Claude reads the receipts, estimates items you add by hand and writes the recipes: Opus 5.5 by default, or Sonnet 5.5 as the faster, cheaper choice in Settings. The interface is in English or German (Swiss spelling), the sample data too, and light and dark mode follow the device.
 
 ## What it does
 
@@ -33,7 +33,7 @@ Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the rec
 - **Receipt**: the purchase's totals, where the calories come from by category, basket check, every item with its own emoji and the printed line it came from, editing, re-scan and delete.
 - **Recipes**: your kitchen, the mood chips and the ideas; saved recipes underneath. A recipe opens with nutrition per serving, ingredients and steps you can tick off while cooking.
 - **Shopping**: a list fed by recipes or typed by hand, with a share button.
-- **Settings**: Anthropic API key (device keychain) and usage, language, currency, household size, cooking-time limit, dietary preferences, reminders, backup export and import, CSV export, sample data, delete all.
+- **Settings**: Anthropic API key (device keychain), reading quality (Opus or Sonnet) and usage, language, currency, household size, cooking-time limit, dietary preferences, reminders, backup export and import, CSV export, sample data, delete all.
 
 ## Install on Android
 
@@ -94,7 +94,7 @@ src/lib/storage.ts             AsyncStorage / SecureStore persistence
 src/lib/backup.ts              Backup export and import, file delivery
 src/lib/csv.ts                 Items as a spreadsheet
 src/lib/reminders.ts           Use-soon notifications (plan in reminder-plan.ts)
-src/lib/demo.ts                Sample data and demo-build results
+src/lib/demo.ts                Sample data and demo-build results (German in demo-de.ts)
 ```
 
 ## Notes

@@ -226,6 +226,20 @@ export default function SettingsScreen() {
             {t('settings.keyNote')}
           </ThemedText>
         </Card>
+        <Card>
+          <ThemedText variant="bodyStrong">{t('settings.model')}</ThemedText>
+          <ThemedText variant="caption" color="textSecondary">
+            {t('settings.modelNote')}
+          </ThemedText>
+          <Segmented
+            value={settings.model}
+            options={[
+              ['best', t('settings.modelBest')],
+              ['fast', t('settings.modelFast')],
+            ]}
+            onChange={(model) => update({ model })}
+          />
+        </Card>
         {usage && usage.scans + usage.recipeRequests + usage.estimates > 0 && (
           <Card>
             <View style={styles.row}>

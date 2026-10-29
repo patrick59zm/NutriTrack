@@ -12,6 +12,7 @@ import {
   ReceiptItemSchema,
   RecipeSuggestionsSchema,
   type Language,
+  type ModelChoice,
   type Receipt,
   type ReceiptAnalysis,
   type ReceiptItem,
@@ -30,9 +31,12 @@ import {
   viewerErrorMessage,
 } from './viewer-claude';
 
-const MODEL = 'claude-opus-5-5';
-// List price of the model above, US dollars per million tokens.
-const PRICE_PER_MTOK = { input: 4, output: 20 };
+// The models on offer and their list prices, US dollars per million tokens.
+const MODELS: Record<ModelChoice, { id: string; price: { input: number; output: number } }> = {
+  best: { id: 'claude-opus-5-5', price: { input: 4, output: 20 } },
+  fast: { id: 'claude-sonnet-5-5', price: { input: 2, output: 10 } },
+};
+const modelFor = (settings: Pick<Settings, 'model'>) => MODELS[settings.model] ?? MODELS.best;
 
 // Server-side fallback: if the model declines, the API retries on Anthropic's
 // recommended fallback model inside the same call.
@@ -59,13 +63,16 @@ const languageName = (lang: Language) => (lang === 'de' ? 'German' : 'English');
 
 export const NO_USAGE: Usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
 
-function usageOf(response: { usage: { input_tokens: number; output_tokens: number } }): Usage {
+function usageOf(
+  response: { usage: { input_tokens: number; output_tokens: number } },
+  price: { input: number; output: number },
+): Usage {
   const inputTokens = response.usage.input_tokens;
   const outputTokens = response.usage.output_tokens;
   return {
     inputTokens,
     outputTokens,
-    costUsd: (inputTokens * PRICE_PER_MTOK.input + outputTokens * PRICE_PER_MTOK.output) / 1_000_000,
+    costUsd: (inputTokens * price.input + outputTokens * price.output) / 1_000_000,
   };
 }
 
@@ -126,7 +133,7 @@ export async function analyzeReceipt(
   options.onPhase?.('reading');
   const { analysis, usage, sampleReason } = DEMO_MODE
     ? await analyzeWithViewerClaude(images, settings.language, options)
-    : await requestAnalysis(images, settings.language, options);
+    : await requestAnalysis(images, settings, options);
   if (!analysis.is_receipt || analysis.items.length === 0) {
     throw new Error(t('error.noReceipt'));
   }
@@ -158,14 +165,16 @@ export async function analyzeReceipt(
 
 async function requestAnalysis(
   images: PreparedImage[],
-  language: Language,
+  settings: Settings,
   options: ScanOptions,
 ): Promise<{ analysis: ReceiptAnalysis; usage: Usage; sampleReason?: undefined }> {
   const anthropic = await client();
+  const { language } = settings;
+  const model = modelFor(settings);
   const run = async (extra: string | null) => {
     const response = await anthropic.beta.messages.parse(
       {
-        model: MODEL,
+        model: model.id,
         max_tokens: 16000,
         ...fallbackParams(),
         output_config: { effort: 'high', format: betaZodOutputFormat(ReceiptAnalysisSchema) },
@@ -186,7 +195,7 @@ async function requestAnalysis(
     if (response.stop_reason === 'max_tokens') throw new Error(t('error.tooLong'));
     const analysis = response.parsed_output;
     if (!analysis) throw new Error(t('error.unreadable'));
-    return { analysis, usage: usageOf(response) };
+    return { analysis, usage: usageOf(response, model.price) };
   };
 
   let { analysis, usage } = await run(null);
@@ -276,8 +285,9 @@ export async function estimateItem(description: string, settings: Settings): Pro
     }
   } else {
     const anthropic = await client();
+    const model = modelFor(settings);
     const response = await anthropic.beta.messages.parse({
-      model: MODEL,
+      model: model.id,
       max_tokens: 4000,
       ...fallbackParams(),
       output_config: { effort: 'low', format: betaZodOutputFormat(ReceiptItemSchema) },
@@ -286,7 +296,7 @@ export async function estimateItem(description: string, settings: Settings): Pro
     });
     if (!response.parsed_output) throw new Error(t('error.estimateFailed'));
     estimate = response.parsed_output;
-    await recordUsage('estimates', usageOf(response));
+    await recordUsage('estimates', usageOf(response, model.price));
   }
 
   // Without Claude (demo page without access), the item is still added, just without values.
@@ -357,8 +367,9 @@ ${wish ? `Today's wish: ${wish}\n` : ''}Suggest ${opts.count ?? 4} varied recipe
   if (DEMO_MODE) return recipesWithViewerClaude(request, pantry.map((p) => p.name), diet);
 
   const anthropic = await client();
+  const model = modelFor(settings);
   const response = await anthropic.beta.messages.parse({
-    model: MODEL,
+    model: model.id,
     max_tokens: 16000,
     ...fallbackParams(),
     output_config: { effort: 'medium', format: betaZodOutputFormat(RecipeSuggestionsSchema) },
@@ -369,7 +380,7 @@ ${wish ? `Today's wish: ${wish}\n` : ''}Suggest ${opts.count ?? 4} varied recipe
   if (response.stop_reason === 'refusal') throw new Error(t('error.declinedRecipes'));
   const result = response.parsed_output;
   if (!result) throw new Error(t('error.recipesUnreadable'));
-  const usage = usageOf(response);
+  const usage = usageOf(response, model.price);
   await recordUsage('recipeRequests', usage);
   return { recipes: result.recipes, usage };
 }
