@@ -1,18 +1,39 @@
 # NutriTrack
 
-Take a photo of a supermarket receipt (Kassenzettel). NutriTrack lists every product with its estimated nutrition, sums up the whole purchase, and suggests recipes that use what you bought in the last few days, starting with whatever spoils first.
+Take a photo of a supermarket receipt (Kassenzettel). NutriTrack lists every product with its estimated nutrition, sums up the whole purchase, keeps a picture of what is in your kitchen, and suggests recipes that use what you bought in the last few days, starting with whatever spoils first.
 
-Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the receipts and writes the recipes.
+Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the receipts, estimates items you add by hand and writes the recipes. The interface is in English or German (Swiss spelling), and light and dark mode follow the device.
+
+## What it does
+
+**Scanning**
+- Camera or gallery on the phone, file upload in the browser. Long receipts are cut into overlapping tiles so every line is read at full resolution; the scan can be cancelled.
+- Swiss and German stores (Migros, Coop, Denner, Volg, REWE, Lidl, Aldi, …), CHF and EUR, deposits (Depot/Pfand) and discounts handled as non-food.
+- The item prices are checked against the printed total. When they do not add up, Claude reads the receipt a second time and the receipt carries a warning until you have checked the items.
+- The photo is kept with the receipt and can be viewed full screen; every item is editable (name, quantity, weight, price, category, food or not), items can be added by description ("Bananen 1 kg") and estimated by Claude, and a receipt can be scanned again.
+
+**Nutrition**
+- Calories, protein, carbs, fat, sugar, saturated fat, fiber and salt per item (per 100 g and for the amount bought), per receipt, per week and per 30 days, plus the figure per person and day for your household.
+- **Basket check**: sugar, saturated fat, fiber, salt, protein and fruit & vegetables compared with WHO guideline values, as meters with a word and an icon, not just a color.
+- **Trends**: calories and spending per week for the last eight weeks.
+
+**Kitchen and recipes**
+- Everything bought in the last 3, 5, 7 or 14 days with a freshness label from the estimated shelf life. Tick off what is used up.
+- Recipe ideas from Claude for what is in the kitchen, honoring dietary preferences, household size, a cooking-time limit and a wish of the day ("something light", "one pot"). Ingredients are marked "In kitchen" or "To buy"; the missing ones go to the shopping list with one tap.
+- Save recipes, share them as text, and log "I cooked this", which marks the ingredients as used up.
+- Opt-in reminder at 17:00 on days when something in the kitchen is about to go off.
+
+**Keeping things**
+- Receipts, recipes, lists and settings stay on the device. A backup can be exported as one JSON file and imported on another phone; the Claude usage (tokens and list-price cost) is counted per device.
 
 ## Screens
 
-- **Today**: scan a receipt (camera or gallery), see the week's nutrition as a macro ring, the items to use soon, recipe ideas and recent receipts.
-- **Receipt**: the purchase's calories and macros, where the calories come from by category, and every item with its own emoji. Tap an item to compare its values per 100 g with the amount bought.
-- **Receipts**: all scans grouped by week, with 30-day totals.
-- **Recipes**: your kitchen for the last 3, 5, 7 or 14 days, with freshness labels ("1 day", "3 days") based on estimated shelf life. Tap **Suggest recipes** to get dishes built mainly from those items. A recipe opens with nutrition per serving, ingredients marked "In kitchen" or "To buy", and steps you can tick off while cooking.
-- **Settings**: Anthropic API key (kept in the device keychain), language (English or German, for the whole app as well as product names and recipes), dietary preferences, sample data, delete all.
-
-Light and dark mode follow the device setting. The interface is available in English and German (Swiss spelling).
+- **Today**: scan, the week's nutrition with the macro ring, per-person figure and basket check, items to use soon, recipe and shopping teasers, recent receipts.
+- **Receipts**: 30-day totals, the weekly trends, search by store or item, and every receipt grouped by week.
+- **Receipt**: the purchase's totals, where the calories come from by category, basket check, every item with its own emoji and the printed line it came from, editing, re-scan and delete.
+- **Recipes**: your kitchen, the mood chips and the ideas; saved recipes underneath. A recipe opens with nutrition per serving, ingredients and steps you can tick off while cooking.
+- **Shopping**: a list fed by recipes or typed by hand, with a share button.
+- **Settings**: Anthropic API key (device keychain) and usage, language, currency, household size, cooking-time limit, dietary preferences, reminders, export and import, sample data, delete all.
 
 ## Install on Android
 
@@ -22,7 +43,7 @@ Every push to `main` (and to the development branch) builds an installable Andro
 2. Open the downloaded file. Android asks to allow installs from your browser the first time; allow it, then tap **Install**.
 3. Open NutriTrack, go to **Settings** and paste your Anthropic API key.
 
-Newer builds install over the old one and keep your receipts. The APK is signed with a development key: fine for installing directly, not for the Play Store. The workflow is in `.github/workflows/android.yml`.
+Newer builds install over the old one and keep your receipts. The APK is signed with a development key: fine for installing directly, not for the Play Store. The workflow (`.github/workflows/android.yml`) typechecks, runs the unit tests and then builds.
 
 ## Run it
 
@@ -41,7 +62,10 @@ Checks:
 ```bash
 npm run typecheck
 npm run lint
+npm test
 ```
+
+The unit tests (`src/lib/__tests__`) cover the nutrition maths, the price check, the basket metrics, the lenient JSON parsing of Claude's answers and the English/German dictionary.
 
 ## Demo build
 
@@ -50,23 +74,30 @@ npm run lint
 ## Project layout
 
 ```
-src/app/(tabs)/index.tsx       Today: scan, weekly summary, use-soon items
-src/app/(tabs)/history.tsx     All receipts
+src/app/(tabs)/index.tsx       Today: scan, weekly summary, basket check, use-soon items
+src/app/(tabs)/history.tsx     Receipts, 30-day totals, trends, search
 src/app/(tabs)/recipes.tsx     Kitchen and recipe suggestions
-src/app/(tabs)/settings.tsx    API key, language, diet, data
-src/app/receipt/[id].tsx       Receipt detail
-src/app/recipe/[index].tsx     Recipe detail
-src/components/                Design system (ui.tsx), charts, cards, scan overlay
+src/app/(tabs)/shopping.tsx    Shopping list
+src/app/(tabs)/settings.tsx    API key and usage, preferences, reminders, backup
+src/app/receipt/[id].tsx       Receipt detail and editing
+src/app/recipe/[index].tsx     Recipe detail, shopping, "I cooked this"
+src/components/                Design system (ui.tsx), charts, cards, item editor, scan overlay
 src/constants/theme.ts         Colors (light/dark), spacing, radii
-src/lib/claude.ts              Claude calls (receipt analysis, recipes)
+src/hooks/use-scanner.ts       The scan flow (pick, prepare, analyze, save)
+src/lib/claude.ts              Claude calls (receipt analysis, item estimate, recipes)
+src/lib/parse.ts               Lenient parsing of structured answers
 src/lib/types.ts               Zod schemas used for structured output
-src/lib/nutrition.ts           Scaling, totals, pantry and freshness
+src/lib/nutrition.ts           Scaling, totals, price check, pantry and freshness
+src/lib/insights.ts            Basket check, weekly series, search
+src/lib/i18n.ts                English and German strings
 src/lib/storage.ts             AsyncStorage / SecureStore persistence
+src/lib/backup.ts              Export and import
+src/lib/reminders.ts           Use-soon notifications
 src/lib/demo.ts                Sample data and demo-build results
 ```
 
 ## Notes
 
-- Nutrition values are estimates for typical products, not read from the packaging.
+- Nutrition values are estimates for typical products, not read from the packaging; the basket check compares what was bought, not what was eaten.
 - The app calls the Anthropic API directly with the user's own key, which is fine for personal use. Before publishing it to other people, put a small backend in front of the API so no key ships in the app.
-- Receipts and recipes stay on the device. Only the receipt photo and the list of foods are sent to the API.
+- Receipts and recipes stay on the device. Only the receipt photo (or the typed description of an item) and the list of foods are sent to the API.

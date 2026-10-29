@@ -55,12 +55,31 @@ export async function buildBackup(): Promise<Backup> {
   };
 }
 
+/**
+ * A claude.ai artifact page cannot download files itself; its host offers a `downloads`
+ * capability that asks the viewer to save the file instead. Null outside such a page.
+ */
+async function viewerDownloads(): Promise<{ save(file: { filename: string; data: string }): Promise<unknown> } | null> {
+  const host = (globalThis as { claude?: { use?: (name: string) => Promise<unknown> } }).claude;
+  if (typeof host?.use !== 'function') return null;
+  try {
+    return ((await host.use('downloads')) as { save(file: { filename: string; data: string }): Promise<unknown> } | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Writes the backup and hands it to the share sheet (native) or the browser's download. */
 export async function exportBackup(): Promise<'shared' | 'downloaded'> {
   const backup = await buildBackup();
   const json = JSON.stringify(backup, null, 1);
   const name = `nutritrack-backup-${backup.exportedAt.slice(0, 10)}.json`;
   if (Platform.OS === 'web') {
+    const downloads = await viewerDownloads();
+    if (downloads) {
+      await downloads.save({ filename: name, data: json });
+      return 'downloaded';
+    }
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
