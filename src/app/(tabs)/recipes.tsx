@@ -63,8 +63,7 @@ export default function RecipesScreen() {
     try {
       const { recipes, sampleReason } = await suggestRecipes({
         receipts: receiptsWithin(receipts, windowDays),
-        language: settings.language,
-        diet: settings.diet,
+        settings,
       });
       const next = {
         createdAt: new Date().toISOString(),

@@ -1,4 +1,4 @@
-import type { Nutrition, Receipt, RecipeBatch, ReceiptItem, ReceiptItemAnalysis } from './types';
+import type { Currency, Nutrition, Receipt, RecipeBatch, ReceiptItem, ReceiptItemAnalysis } from './types';
 
 export const EMPTY_NUTRITION: Nutrition = {
   kcal: 0,
@@ -26,11 +26,43 @@ export function sum(list: Nutrition[]): Nutrition {
   return out;
 }
 
-export function withTotals(item: ReceiptItemAnalysis): ReceiptItem {
+type ItemInput = ReceiptItemAnalysis & { id?: string; consumed?: boolean; edited?: boolean };
+
+export function withTotals(item: ItemInput, id?: string): ReceiptItem {
   return {
     ...item,
+    id: id ?? item.id ?? newId('item'),
     nutrition_total: item.is_food ? scale(item.nutrition_per_100g, item.total_weight_g) : EMPTY_NUTRITION,
   };
+}
+
+export function newId(prefix: string) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Re-derives every computed field after items were changed by hand. */
+export function recomputeReceipt(receipt: Receipt): Receipt {
+  const items = receipt.items.map((i) => withTotals(i, i.id));
+  return { ...receipt, items, totals: sum(items.map((i) => i.nutrition_total)) };
+}
+
+/** Receipts saved by older versions have no item ids; give them stable ones once. */
+export function ensureItemIds(receipt: Receipt): Receipt {
+  if (receipt.items.every((i) => i.id)) return receipt;
+  return { ...receipt, items: receipt.items.map((i, n) => ({ ...i, id: i.id ?? `${receipt.id}-${n}` })) };
+}
+
+/**
+ * Item prices should add up to the printed total. A clear gap means lines were missed,
+ * read twice or misread, which is worth a second look.
+ */
+export function priceCheck(items: { price: number | null }[], total: number | null) {
+  const priced = items.filter((i) => i.price != null);
+  const sum = priced.reduce((a, i) => a + (i.price ?? 0), 0);
+  if (total == null || total <= 0 || priced.length === 0) return { sum, total, gap: 0, ok: true };
+  const gap = sum - total;
+  const ok = Math.abs(gap) <= Math.max(0.5, total * 0.07);
+  return { sum, total, gap, ok };
 }
 
 /** Share of energy from protein / carbs / fat (4 / 4 / 9 kcal per gram). */
@@ -65,6 +97,7 @@ export type PantryItem = {
   boughtDaysAgo: number;
   daysLeft: number;
   receiptId: string;
+  itemId: string;
 };
 
 /** Food bought within the window, most urgent (fewest days left) first. */
@@ -73,7 +106,7 @@ export function pantryFrom(receipts: Receipt[], windowDays: number, now = new Da
     .flatMap((r) => {
       const age = daysSince(r.purchasedAt, now);
       return r.items
-        .filter((i) => i.is_food)
+        .filter((i) => i.is_food && !i.consumed)
         .map((i) => ({
           name: i.name,
           emoji: i.emoji,
@@ -82,6 +115,7 @@ export function pantryFrom(receipts: Receipt[], windowDays: number, now = new Da
           boughtDaysAgo: age,
           daysLeft: Math.round(i.shelf_life_days) - age,
           receiptId: r.id,
+          itemId: i.id,
         }));
     })
     .sort((a, b) => a.daysLeft - b.daysLeft);
@@ -109,9 +143,29 @@ export function relativeDay(iso: string, now = new Date()) {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-export function money(value: number, currency: string | null) {
-  const symbol = !currency || /eur|€/i.test(currency) ? '€' : currency;
-  return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+/** Turns whatever a receipt printed ("EUR", "€", "Fr.", "CHF", "SFr") into a currency code. */
+export function normalizeCurrency(value: string | null | undefined, fallback: Currency = 'EUR'): Currency {
+  const v = (value ?? '').trim().toUpperCase();
+  if (/CHF|SFR|FR\.?$|FRANKEN|FRANC/.test(v)) return 'CHF';
+  if (/USD|\$/.test(v)) return 'USD';
+  if (/GBP|£/.test(v)) return 'GBP';
+  if (/EUR|€/.test(v)) return 'EUR';
+  return fallback;
+}
+
+export function money(value: number, currency: string | null | undefined, fallback: Currency = 'EUR') {
+  const code = normalizeCurrency(currency, fallback);
+  const amount = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  switch (code) {
+    case 'CHF':
+      return `CHF ${amount}`;
+    case 'USD':
+      return `$${amount}`;
+    case 'GBP':
+      return `£${amount}`;
+    default:
+      return `${amount} €`;
+  }
 }
 
 /** Saved recipe ideas only count while the dietary preferences they were made for still apply. */

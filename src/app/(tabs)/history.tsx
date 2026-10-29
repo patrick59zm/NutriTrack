@@ -8,8 +8,8 @@ import { Button, Card, EmptyState, Screen, StatTile } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { daysSince, fmt, money, receiptsWithin, sum } from '@/lib/nutrition';
-import { loadDemoData, loadReceipts } from '@/lib/storage';
-import type { Receipt } from '@/lib/types';
+import { loadDemoData, loadReceipts, loadSettings } from '@/lib/storage';
+import { DEFAULT_SETTINGS, type Receipt } from '@/lib/types';
 
 function groupByAge(receipts: Receipt[]) {
   const groups: { title: string; items: Receipt[] }[] = [
@@ -24,8 +24,14 @@ function groupByAge(receipts: Receipt[]) {
   return groups.filter((g) => g.items.length > 0);
 }
 
+const loadHistory = async () => {
+  const [receipts, settings] = await Promise.all([loadReceipts(), loadSettings()]);
+  return { receipts, settings };
+};
+
 export default function HistoryScreen() {
-  const { data: receipts, loaded, reload } = useFocusData(loadReceipts, []);
+  const { data, loaded, reload } = useFocusData(loadHistory, { receipts: [], settings: DEFAULT_SETTINGS });
+  const { receipts, settings } = data;
 
   const month = receiptsWithin(receipts, 30);
   const monthTotals = sum(month.map((r) => r.totals));
@@ -66,7 +72,7 @@ export default function HistoryScreen() {
             <View style={styles.stats}>
               <StatTile label="Energy" value={fmt(monthTotals.kcal)} unit="kcal" icon="flame" />
               <StatTile label="Protein" value={fmt(monthTotals.protein_g)} unit="g" icon="barbell-outline" />
-              <StatTile label="Spent" value={money(monthSpent, 'EUR')} icon="wallet-outline" />
+              <StatTile label="Spent" value={money(monthSpent, settings.currency)} icon="wallet-outline" />
             </View>
           </Card>
         </Animated.View>

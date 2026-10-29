@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -14,6 +14,7 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import type { ScanPhase } from '@/lib/claude';
 
 const STEPS = [
   'Reading the receipt…',
@@ -25,7 +26,17 @@ const STEPS = [
 
 const FRAME_HEIGHT = 340;
 
-export function ScanningOverlay({ visible, imageUri }: { visible: boolean; imageUri: string | null }) {
+export function ScanningOverlay({
+  visible,
+  imageUri,
+  phase = 'reading',
+  onCancel,
+}: {
+  visible: boolean;
+  imageUri: string | null;
+  phase?: ScanPhase;
+  onCancel?: () => void;
+}) {
   const [step, setStep] = useState(0);
   const line = useSharedValue(0);
 
@@ -62,15 +73,24 @@ export function ScanningOverlay({ visible, imageUri }: { visible: boolean; image
           </View>
           <View style={styles.status}>
             <ActivityIndicator color="#7BE0AA" />
-            <Animated.View key={step} entering={FadeIn.duration(300)}>
+            <Animated.View key={phase === 'checking' ? 'checking' : step} entering={FadeIn.duration(300)}>
               <ThemedText variant="headline" style={styles.white}>
-                {STEPS[step]}
+                {phase === 'checking' ? 'Double-checking the prices…' : STEPS[step]}
               </ThemedText>
             </Animated.View>
           </View>
           <ThemedText variant="caption" style={styles.muted}>
-            Claude is reading every line. This usually takes 20–60 seconds.
+            {phase === 'checking'
+              ? 'The prices did not add up to the total, so Claude is reading the receipt a second time.'
+              : 'Claude is reading every line. This usually takes 20–60 seconds.'}
           </ThemedText>
+          {onCancel && (
+            <Pressable onPress={onCancel} accessibilityRole="button" style={styles.cancel} hitSlop={8}>
+              <ThemedText variant="captionStrong" style={styles.white}>
+                Cancel
+              </ThemedText>
+            </Pressable>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -107,4 +127,12 @@ const styles = StyleSheet.create({
   status: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   white: { color: '#FFFFFF' },
   muted: { color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
+  cancel: {
+    marginTop: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.six,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
 });

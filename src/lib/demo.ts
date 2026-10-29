@@ -57,7 +57,7 @@ function receipt(
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
   d.setHours(17, 42, 0, 0);
-  const withNutrition = items.map(withTotals);
+  const withNutrition = items.map((item, n) => withTotals(item, `${id}-${n}`));
   return {
     id,
     purchasedAt: d.toISOString(),

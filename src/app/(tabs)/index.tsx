@@ -1,8 +1,6 @@
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ImageFileInput } from '@/components/image-file-input';
@@ -27,12 +25,12 @@ import { HeroGradient, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
-import { analyzeReceipt, describeError } from '@/lib/claude';
+import { useScanner } from '@/hooks/use-scanner';
 import { DEMO_MODE } from '@/lib/config';
-import { failure, success } from '@/lib/haptics';
-import { prepareReceiptImages } from '@/lib/image';
+import { success } from '@/lib/haptics';
 import { money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
-import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings, saveReceipt } from '@/lib/storage';
+import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings } from '@/lib/storage';
+import { DEFAULT_SETTINGS } from '@/lib/types';
 
 const SUMMARY_DAYS = 7;
 
@@ -52,58 +50,24 @@ const loadHome = async () => {
   ]);
   // Ideas made for other dietary preferences are not offered.
   const recipes = recipesMatchDiet(batch, settings.diet) ? batch : null;
-  return { receipts, recipes, hasKey: !!apiKey };
+  return { receipts, recipes, hasKey: !!apiKey, settings };
 };
 
 export default function TodayScreen() {
   const theme = useTheme();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const { data, loaded, reload } = useFocusData(loadHome, { receipts: [], recipes: null, hasKey: false });
-  const [preview, setPreview] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loaded, reload } = useFocusData(loadHome, {
+    receipts: [],
+    recipes: null,
+    hasKey: false,
+    settings: DEFAULT_SETTINGS,
+  });
 
-  const analyzePhoto = useCallback(async (uri: string) => {
-    setError(null);
-    setPreview(uri);
-    setBusy(true);
-    try {
-      const [images, settings] = await Promise.all([prepareReceiptImages(uri), loadSettings()]);
-      const receipt = await analyzeReceipt(images, settings.language);
-      await saveReceipt(receipt);
-      success();
-      router.push({ pathname: '/receipt/[id]', params: { id: receipt.id, fresh: '1' } });
-    } catch (e) {
-      failure();
-      setError(describeError(e));
-    } finally {
-      setBusy(false);
-      setPreview(null);
-      if (uri.startsWith('blob:')) URL.revokeObjectURL(uri);
-    }
-  }, []);
+  const scanner = useScanner({
+    onDone: (receipt) => router.push({ pathname: '/receipt/[id]', params: { id: receipt.id, fresh: '1' } }),
+  });
 
-  const pick = useCallback(
-    async (source: 'camera' | 'library') => {
-      setError(null);
-      if (source === 'camera') {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert('Camera access needed', 'Allow camera access in Settings to photograph receipts.');
-          return;
-        }
-      }
-      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
-      const result =
-        source === 'camera'
-          ? await ImagePicker.launchCameraAsync(options)
-          : await ImagePicker.launchImageLibraryAsync(options);
-      if (!result.canceled && result.assets[0]) await analyzePhoto(result.assets[0].uri);
-    },
-    [analyzePhoto],
-  );
-
-  const { receipts, recipes, hasKey } = data;
+  const { receipts, recipes, hasKey, settings } = data;
   const recent = receiptsWithin(receipts, SUMMARY_DAYS);
   const weekTotals = sum(recent.map((r) => r.totals));
   const spent = recent.reduce((a, r) => a + (r.totalPrice ?? 0), 0);
@@ -118,7 +82,7 @@ export default function TodayScreen() {
 
   return (
     <Screen overline={today} title={greeting()}>
-      <ScanningOverlay visible={busy} imageUri={preview} />
+      <ScanningOverlay visible={scanner.busy} imageUri={scanner.preview} phase={scanner.phase} onCancel={scanner.cancel} />
 
       <Animated.View entering={enter()}>
         <LinearGradient colors={HeroGradient[scheme]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
@@ -132,25 +96,25 @@ export default function TodayScreen() {
             </ThemedText>
           </View>
           <View style={styles.heroButtons}>
-            {Platform.OS !== 'web' && (
+            {!scanner.isWeb && (
               <View style={styles.flex}>
-                <Button title="Take photo" icon="camera" variant="onBrand" onPress={() => pick('camera')} />
+                <Button title="Take photo" icon="camera" variant="onBrand" onPress={() => scanner.pick('camera')} />
               </View>
             )}
             <View style={styles.flex}>
-              {Platform.OS === 'web' ? (
-                <ImageFileInput onPick={analyzePhoto}>
+              {scanner.isWeb ? (
+                <ImageFileInput onPick={scanner.analyzePhoto}>
                   <Button title="Upload receipt photo" icon="cloud-upload-outline" variant="onBrand" onPress={() => {}} />
                 </ImageFileInput>
               ) : (
-                <Button title="Gallery" icon="images-outline" variant="onBrandGhost" onPress={() => pick('library')} />
+                <Button title="Gallery" icon="images-outline" variant="onBrandGhost" onPress={() => scanner.pick('library')} />
               )}
             </View>
           </View>
         </LinearGradient>
       </Animated.View>
 
-      <Banner message={error} onDismiss={() => setError(null)} />
+      <Banner message={scanner.error} onDismiss={scanner.clearError} />
       {DEMO_MODE && (
         <Banner
           tone="warn"
@@ -204,7 +168,7 @@ export default function TodayScreen() {
             <View style={styles.stats}>
               <StatTile label="Receipts" value={String(recent.length)} icon="receipt-outline" />
               <StatTile label="Items" value={String(foodCount)} icon="basket-outline" />
-              <StatTile label="Spent" value={money(spent, 'EUR')} icon="wallet-outline" />
+              <StatTile label="Spent" value={money(spent, settings.currency)} icon="wallet-outline" />
             </View>
           </Card>
         </Animated.View>

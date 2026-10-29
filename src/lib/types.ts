@@ -59,9 +59,18 @@ export const ReceiptAnalysisSchema = z.object({
 export type ReceiptAnalysis = z.infer<typeof ReceiptAnalysisSchema>;
 
 export type ReceiptItem = ReceiptItemAnalysis & {
+  /** Stable id for edits and pantry state, assigned when the receipt is saved. */
+  id: string;
   /** Nutrition for the whole purchased amount, computed locally from per-100g values. */
   nutrition_total: Nutrition;
+  /** Set once the item has been eaten or thrown away; it then leaves the kitchen. */
+  consumed?: boolean;
+  /** Set for items the user typed in or changed by hand. */
+  edited?: boolean;
 };
+
+/** Tokens spent on Claude calls and their estimated price in US dollars. */
+export type Usage = { inputTokens: number; outputTokens: number; costUsd: number };
 
 export type Receipt = {
   id: string;
@@ -74,6 +83,12 @@ export type Receipt = {
   notes: string | null;
   items: ReceiptItem[];
   totals: Nutrition;
+  /** Local copy of the photo (native builds only). */
+  photoUri?: string;
+  /** Problems found after the scan, e.g. item prices that do not add up to the printed total. */
+  warnings?: string[];
+  /** What the scan (and any correction pass) cost. */
+  usage?: Usage;
   /** Demo build only: set when a sample was shown instead of reading the photo, with the reason. */
   sampleReason?: string;
 };
@@ -114,15 +129,36 @@ export type RecipeBatch = {
 };
 
 export type Language = 'en' | 'de';
+export type Currency = 'EUR' | 'CHF' | 'USD' | 'GBP';
 
 export type Settings = {
   language: Language;
   diet: string;
   recipeWindowDays: number;
+  /** Currency for totals across receipts and for items added by hand. */
+  currency: Currency;
+  /** People eating from these groceries; used for per-person figures and recipe servings. */
+  householdSize: number;
+  /** Longest cooking time wanted for recipe ideas, in minutes; null for no limit. */
+  maxCookMinutes: number | null;
 };
+
+/** Swiss devices start with francs, everyone else with euros; both can be changed in Settings. */
+function defaultCurrency(): Currency {
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale ?? '';
+    if (/-CH\b/i.test(locale)) return 'CHF';
+    if (/-(US|CA)\b/i.test(locale)) return 'USD';
+    if (/-GB\b/i.test(locale)) return 'GBP';
+  } catch {}
+  return 'EUR';
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   language: 'en',
   diet: '',
   recipeWindowDays: 5,
+  currency: defaultCurrency(),
+  householdSize: 2,
+  maxCookMinutes: null,
 };

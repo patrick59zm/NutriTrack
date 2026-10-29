@@ -4,11 +4,14 @@ import { Platform } from 'react-native';
 
 import { DEMO_MODE } from './config';
 import { demoReceipts, demoRecipes } from './demo';
-import { DEFAULT_SETTINGS, type RecipeBatch, type Receipt, type Settings } from './types';
+import { ensureItemIds } from './nutrition';
+import { deleteReceiptPhoto } from './photos';
+import { DEFAULT_SETTINGS, type RecipeBatch, type Receipt, type Settings, type Usage } from './types';
 
 const RECEIPTS_KEY = 'nutritrack.receipts.v1';
 const RECIPES_KEY = 'nutritrack.recipes.v1';
 const SETTINGS_KEY = 'nutritrack.settings.v1';
+const USAGE_KEY = 'nutritrack.usage.v1';
 const API_KEY_KEY = 'nutritrack.anthropicApiKey';
 
 // Storage can be unavailable on web (private windows, sandboxed iframes). Fall back to
@@ -50,7 +53,7 @@ export async function loadReceipts(): Promise<Receipt[]> {
   // Demo builds start with sample data on the very first launch.
   if (DEMO_MODE && (await kv.get(RECEIPTS_KEY)) === null) await loadDemoData();
   const list = await readJson<Receipt[]>(RECEIPTS_KEY, []);
-  return list.sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt));
+  return list.map(ensureItemIds).sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt));
 }
 
 export async function saveReceipts(receipts: Receipt[]) {
@@ -64,7 +67,18 @@ export async function saveReceipt(receipt: Receipt) {
 
 export async function deleteReceipt(id: string) {
   const list = await loadReceipts();
+  await deleteReceiptPhoto(list.find((r) => r.id === id)?.photoUri);
   await saveReceipts(list.filter((r) => r.id !== id));
+}
+
+/** Applies a change to one stored receipt and returns the result (null if it is gone). */
+export async function updateReceipt(id: string, change: (receipt: Receipt) => Receipt): Promise<Receipt | null> {
+  const list = await loadReceipts();
+  const current = list.find((r) => r.id === id);
+  if (!current) return null;
+  const next = change(current);
+  await saveReceipts(list.map((r) => (r.id === id ? next : r)));
+  return next;
 }
 
 export async function getReceipt(id: string) {
@@ -87,12 +101,42 @@ export async function saveSettings(settings: Settings) {
   await kv.set(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+// Running total of what Claude calls have cost, kept even when receipts are deleted.
+export type UsageTotals = Usage & { scans: number; recipeRequests: number; estimates: number };
+
+const EMPTY_USAGE: UsageTotals = {
+  scans: 0,
+  recipeRequests: 0,
+  estimates: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  costUsd: 0,
+};
+
+export async function loadUsage(): Promise<UsageTotals> {
+  return { ...EMPTY_USAGE, ...(await readJson<Partial<UsageTotals>>(USAGE_KEY, {})) };
+}
+
+export async function recordUsage(kind: 'scans' | 'recipeRequests' | 'estimates', usage: Usage) {
+  const totals = await loadUsage();
+  totals[kind] += 1;
+  totals.inputTokens += usage.inputTokens;
+  totals.outputTokens += usage.outputTokens;
+  totals.costUsd += usage.costUsd;
+  await kv.set(USAGE_KEY, JSON.stringify(totals));
+}
+
+export async function resetUsage() {
+  await kv.remove(USAGE_KEY);
+}
+
 export async function loadDemoData() {
   await saveReceipts(demoReceipts());
   await saveRecipes(demoRecipes());
 }
 
 export async function clearAllData() {
+  for (const r of await loadReceipts()) await deleteReceiptPhoto(r.photoUri);
   await Promise.all([saveReceipts([]), kv.remove(RECIPES_KEY)]);
 }
 

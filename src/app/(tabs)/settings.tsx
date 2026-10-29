@@ -3,33 +3,52 @@ import { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Banner, Button, Card, Chip, Divider, IconCircle, Screen, type IconName } from '@/components/ui';
+import { Banner, Button, Card, Chip, Divider, IconCircle, Screen, Stepper, type IconName } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { DEMO_MODE } from '@/lib/config';
 import { success, tap } from '@/lib/haptics';
-import { clearAllData, getApiKey, loadDemoData, loadSettings, saveSettings, setApiKey } from '@/lib/storage';
-import { DEFAULT_SETTINGS, type Settings } from '@/lib/types';
+import { fmt } from '@/lib/nutrition';
+import {
+  clearAllData,
+  getApiKey,
+  loadDemoData,
+  loadSettings,
+  loadUsage,
+  resetUsage,
+  saveSettings,
+  setApiKey,
+  type UsageTotals,
+} from '@/lib/storage';
+import { DEFAULT_SETTINGS, type Currency, type Settings } from '@/lib/types';
 
-const DIET_SUGGESTIONS = ['Vegetarian', 'Vegan', 'High protein', 'Low carb', 'No nuts', 'Cooking for 2'];
+const DIET_SUGGESTIONS = ['Vegetarian', 'Vegan', 'Pescatarian', 'High protein', 'Low carb', 'Gluten-free', 'No nuts', 'Lactose-free'];
+const COOK_TIMES: (number | null)[] = [null, 15, 30, 45, 60];
+const CURRENCIES: [Currency, string][] = [
+  ['EUR', '€ Euro'],
+  ['CHF', 'CHF'],
+  ['USD', '$ Dollar'],
+  ['GBP', '£ Pound'],
+];
 
 const loadSettingsScreen = async () => {
-  const [apiKey, settings] = await Promise.all([getApiKey(), loadSettings()]);
-  return { apiKey, settings };
+  const [apiKey, settings, usage] = await Promise.all([getApiKey(), loadSettings(), loadUsage()]);
+  return { apiKey, settings, usage };
 };
 
 export default function SettingsScreen() {
   const theme = useTheme();
   const { data, setData, reload } = useFocusData(loadSettingsScreen, {
-    apiKey: null,
+    apiKey: null as string | null,
     settings: DEFAULT_SETTINGS,
+    usage: null as UsageTotals | null,
   });
   const [keyInput, setKeyInput] = useState('');
   // Local draft while typing; falls back to the stored value.
   const [dietDraft, setDiet] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const { apiKey, settings } = data;
+  const { apiKey, settings, usage } = data;
   const diet = dietDraft ?? settings.diet;
 
   const inputStyle = [
@@ -135,6 +154,33 @@ export default function SettingsScreen() {
             The key is stored in this device&apos;s secure storage and only sent to Anthropic.
           </ThemedText>
         </Card>
+        {usage && usage.scans + usage.recipeRequests + usage.estimates > 0 && (
+          <Card>
+            <View style={styles.row}>
+              <IconCircle icon="wallet-outline" size={40} />
+              <View style={styles.flex}>
+                <ThemedText variant="bodyStrong">Claude usage on this device</ThemedText>
+                <ThemedText variant="caption" color="textSecondary">
+                  {usage.scans} scan{usage.scans === 1 ? '' : 's'} · {usage.recipeRequests} recipe round
+                  {usage.recipeRequests === 1 ? '' : 's'} · {usage.estimates} item estimate
+                  {usage.estimates === 1 ? '' : 's'}
+                </ThemedText>
+                <ThemedText variant="caption" color="textSecondary">
+                  {fmt(usage.inputTokens + usage.outputTokens)} tokens, about ${usage.costUsd.toFixed(2)} at list price
+                </ThemedText>
+              </View>
+            </View>
+            <Button
+              title="Reset counter"
+              compact
+              variant="secondary"
+              onPress={async () => {
+                await resetUsage();
+                reload();
+              }}
+            />
+          </Card>
+        )}
       </Group>
 
       <Group title="Preferences">
@@ -148,6 +194,44 @@ export default function SettingsScreen() {
             ]}
             onChange={(language) => update({ language })}
           />
+          <Divider />
+          <ThemedText variant="bodyStrong">Currency</ThemedText>
+          <ThemedText variant="caption" color="textSecondary">
+            For totals across receipts and items you add by hand. Each receipt keeps its own.
+          </ThemedText>
+          <View style={styles.chips}>
+            {CURRENCIES.map(([code, label]) => (
+              <Chip key={code} label={label} selected={settings.currency === code} onPress={() => update({ currency: code })} />
+            ))}
+          </View>
+          <Divider />
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <ThemedText variant="bodyStrong">People in your household</ThemedText>
+              <ThemedText variant="caption" color="textSecondary">
+                Sets recipe servings and the per-person figures.
+              </ThemedText>
+            </View>
+            <Stepper
+              label="People in your household"
+              value={settings.householdSize}
+              min={1}
+              max={8}
+              onChange={(householdSize) => update({ householdSize })}
+            />
+          </View>
+          <Divider />
+          <ThemedText variant="bodyStrong">Longest cooking time for recipe ideas</ThemedText>
+          <View style={styles.chips}>
+            {COOK_TIMES.map((minutes) => (
+              <Chip
+                key={String(minutes)}
+                label={minutes ? `${minutes} min` : 'Any'}
+                selected={settings.maxCookMinutes === minutes}
+                onPress={() => update({ maxCookMinutes: minutes })}
+              />
+            ))}
+          </View>
           <Divider />
           <ThemedText variant="bodyStrong">Dietary preferences</ThemedText>
           <View style={styles.chips}>

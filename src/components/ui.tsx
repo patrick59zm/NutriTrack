@@ -2,12 +2,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
+  TextInput,
   View,
   type PressableProps,
   type StyleProp,
+  type TextInputProps,
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -376,6 +382,159 @@ export function Divider() {
   return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.border }} />;
 }
 
+/** A sheet that slides up from the bottom with a title, a close button and its own scroll. */
+export function Sheet({
+  visible,
+  title,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close" />
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: theme.surface, paddingBottom: Math.max(insets.bottom, Spacing.four) + Spacing.two },
+          ]}>
+          <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
+          <View style={styles.sheetHeader}>
+            <ThemedText variant="title" style={styles.flex}>
+              {title}
+            </ThemedText>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close" accessibilityRole="button">
+              <IconCircle icon="close" size={32} />
+            </Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={styles.sheetBody}>{children}</View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+/** A labelled text input in the app's style. */
+export function Field({
+  label,
+  hint,
+  style,
+  ...rest
+}: TextInputProps & { label: string; hint?: string }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.field}>
+      <ThemedText variant="captionStrong" color="textSecondary">
+        {label}
+      </ThemedText>
+      <TextInput
+        placeholderTextColor={theme.textTertiary}
+        style={[
+          styles.input,
+          { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
+          style,
+        ]}
+        accessibilityLabel={label}
+        {...rest}
+      />
+      {hint && (
+        <ThemedText variant="caption" color="textTertiary">
+          {hint}
+        </ThemedText>
+      )}
+    </View>
+  );
+}
+
+/** A labelled on/off switch. */
+export function SwitchRow({
+  label,
+  detail,
+  value,
+  onChange,
+}: {
+  label: string;
+  detail?: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={styles.switchRow}>
+      <View style={styles.flex}>
+        <ThemedText variant="bodyStrong">{label}</ThemedText>
+        {detail && (
+          <ThemedText variant="caption" color="textSecondary">
+            {detail}
+          </ThemedText>
+        )}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={(v) => {
+          tap();
+          onChange(v);
+        }}
+        trackColor={{ true: theme.brand, false: theme.border }}
+        thumbColor="#FFFFFF"
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+}
+
+/** A number with minus and plus buttons. */
+export function Stepper({
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  format,
+  label,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
+  format?: (value: number) => string;
+  label: string;
+}) {
+  const theme = useTheme();
+  const button = (icon: IconName, next: number, disabled: boolean, name: string) => (
+    <Pressable
+      onPress={() => {
+        tap();
+        onChange(next);
+      }}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={name}
+      style={[styles.stepperButton, { backgroundColor: theme.surfaceMuted, opacity: disabled ? 0.35 : 1 }]}>
+      <Ionicons name={icon} size={18} color={theme.text} />
+    </Pressable>
+  );
+  return (
+    <View style={styles.stepper} accessibilityLabel={label}>
+      {button('remove', Math.max(min, value - step), value <= min, 'Less')}
+      <ThemedText variant="headline" style={styles.stepperValue}>
+        {format ? format(value) : String(value)}
+      </ThemedText>
+      {button('add', Math.min(max, value + step), value >= max, 'More')}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
@@ -422,4 +581,27 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: Spacing.eight, gap: Spacing.two },
   emptyEmoji: { fontSize: 48, lineHeight: 58 },
   emptyActions: { alignSelf: 'stretch', gap: Spacing.two, marginTop: Spacing.three },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(8, 14, 10, 0.55)' },
+  sheet: {
+    maxHeight: '88%',
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+  },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: Spacing.three },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginBottom: Spacing.three },
+  sheetBody: { gap: Spacing.three, paddingBottom: Spacing.two },
+  field: { gap: 6 },
+  input: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+    fontSize: 16,
+  },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  stepperButton: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  stepperValue: { minWidth: 56, textAlign: 'center' },
 });

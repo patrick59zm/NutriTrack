@@ -20,6 +20,14 @@ const STORE_COLORS: Record<string, string> = {
   penny: '#CD1719',
   netto: '#FFD400',
   dm: '#1E3C8C',
+  rossmann: '#C8102E',
+  migros: '#FF6600',
+  coop: '#E30613',
+  denner: '#E2001A',
+  volg: '#00843D',
+  spar: '#008236',
+  manor: '#1A1A1A',
+  landi: '#009640',
 };
 
 export function StoreAvatar({ store, size = 46 }: { store: string | null; size?: number }) {
