@@ -38,20 +38,36 @@ export function Meta({ icon, label }: { icon: React.ComponentProps<typeof Ionico
   );
 }
 
-export function RecipeCard({ recipe, index }: { recipe: Recipe; index: number }) {
+export function RecipeCard({
+  recipe,
+  index,
+  source = 'ideas',
+  saved,
+}: {
+  recipe: Recipe;
+  index: number;
+  /** Which list the recipe screen should open it from. */
+  source?: 'ideas' | 'saved';
+  saved?: boolean;
+}) {
   const theme = useTheme();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const extras = recipe.extra_ingredients_needed.length;
   return (
-    <PressableCard onPress={() => router.push({ pathname: '/recipe/[index]', params: { index: String(index) } })}>
+    <PressableCard
+      accessibilityLabel={recipe.title}
+      onPress={() => router.push({ pathname: '/recipe/[index]', params: { index: String(index), source } })}>
       <Card padded={false} style={styles.card}>
         <View style={[styles.hero, { backgroundColor: recipeTint(index, scheme) }]}>
           <ThemedText style={styles.emoji}>{recipe.emoji || '🍽️'}</ThemedText>
         </View>
         <View style={styles.body}>
-          <ThemedText variant="headline" numberOfLines={2}>
-            {recipe.title}
-          </ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText variant="headline" numberOfLines={2} style={styles.flex}>
+              {recipe.title}
+            </ThemedText>
+            {saved && <Ionicons name="heart" size={16} color={theme.danger} />}
+          </View>
           <View style={styles.metaRow}>
             <Meta icon="time-outline" label={`${recipe.time_minutes} min`} />
             <Meta icon="people-outline" label={`${recipe.servings}`} />
@@ -108,6 +124,8 @@ export function RecipeSkeleton() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   card: { flexDirection: 'row', overflow: 'hidden' },
   hero: { width: 104, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 48, lineHeight: 58 },

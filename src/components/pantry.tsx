@@ -1,10 +1,12 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { IconCircle } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { itemEmoji } from '@/lib/categories';
+import { tap } from '@/lib/haptics';
 import { freshnessLabel, freshnessTone, type PantryItem } from '@/lib/nutrition';
 
 export function FreshnessPill({ daysLeft }: { daysLeft: number }) {
@@ -53,8 +55,9 @@ export function PantryStrip({ items }: { items: PantryItem[] }) {
   );
 }
 
-/** Compact list row, used for the full pantry. */
-export function PantryRow({ item }: { item: PantryItem }) {
+/** Compact list row, used for the full pantry. `onConsume` adds a "used up" button. */
+export function PantryRow({ item, onConsume }: { item: PantryItem; onConsume?: () => void }) {
+  const theme = useTheme();
   return (
     <View style={styles.row}>
       <IconCircle emoji={itemEmoji(item)} size={36} />
@@ -68,6 +71,19 @@ export function PantryRow({ item }: { item: PantryItem }) {
         </ThemedText>
       </View>
       <FreshnessPill daysLeft={item.daysLeft} />
+      {onConsume && (
+        <Pressable
+          onPress={() => {
+            tap();
+            onConsume();
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.name} used up`}
+          style={({ pressed }) => [styles.consume, { backgroundColor: theme.surfaceMuted, opacity: pressed ? 0.6 : 1 }]}>
+          <Ionicons name="checkmark-done-outline" size={18} color={theme.textSecondary} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -95,4 +111,5 @@ const styles = StyleSheet.create({
   },
   tileName: { minHeight: 36 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
+  consume: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

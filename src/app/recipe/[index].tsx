@@ -1,34 +1,84 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Stack } from 'expo-router/stack';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { MacroBar } from '@/components/nutrition-summary';
 import { Meta, recipeTint } from '@/components/recipe-card';
 import { ThemedText } from '@/components/themed-text';
-import { Card, Divider, Screen, SectionHeader, StatTile } from '@/components/ui';
+import { Banner, Button, Card, Divider, Screen, SectionHeader, Sheet, StatTile } from '@/components/ui';
 import { MacroColors, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
-import { tap } from '@/lib/haptics';
-import { EMPTY_NUTRITION, fmt } from '@/lib/nutrition';
-import { loadRecipes } from '@/lib/storage';
+import { success, tap } from '@/lib/haptics';
+import { EMPTY_NUTRITION, fmt, pantryFrom, type PantryItem } from '@/lib/nutrition';
+import { recipeToText, shareText } from '@/lib/share';
+import {
+  addToShopping,
+  loadFavorites,
+  loadReceipts,
+  loadRecipes,
+  loadSettings,
+  recipeKey,
+  recordCooked,
+  setItemsConsumed,
+  toggleFavorite,
+} from '@/lib/storage';
+import { DEFAULT_SETTINGS, type Recipe } from '@/lib/types';
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß ]/g, '').trim();
+const matches = (a: string, b: string) => {
+  const x = norm(a);
+  const y = norm(b);
+  return x === y || x.includes(y) || y.includes(x);
+};
+
+const loadRecipeScreen = async () => {
+  const [batch, favorites, receipts, settings] = await Promise.all([
+    loadRecipes(),
+    loadFavorites(),
+    loadReceipts(),
+    loadSettings(),
+  ]);
+  return { batch, favorites, receipts, settings };
+};
 
 export default function RecipeScreen() {
-  const { index } = useLocalSearchParams<{ index: string }>();
+  const { index, source } = useLocalSearchParams<{ index: string; source?: string }>();
   const i = Number(index);
   const theme = useTheme();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const { data: batch, loaded } = useFocusData(loadRecipes, null);
+  const { data, setData, loaded } = useFocusData(loadRecipeScreen, {
+    batch: null,
+    favorites: [],
+    receipts: [],
+    settings: DEFAULT_SETTINGS,
+  });
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [done, setDone] = useState<Set<number>>(new Set());
+  const [cooking, setCooking] = useState<{ chosen: Set<string> } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const recipe = batch?.recipes[i];
+  const { batch, favorites, receipts, settings } = data;
+  const recipe: Recipe | undefined = source === 'saved' ? favorites[i]?.recipe : batch?.recipes[i];
+  const saved = !!recipe && favorites.some((f) => recipeKey(f.recipe) === recipeKey(recipe));
+
+  const onToggleFavorite = useCallback(async () => {
+    if (!recipe) return;
+    tap();
+    const nowSaved = await toggleFavorite(recipe);
+    setData((d) => ({
+      ...d,
+      favorites: nowSaved
+        ? [{ id: 'pending', savedAt: new Date().toISOString(), recipe }, ...d.favorites]
+        : d.favorites.filter((f) => recipeKey(f.recipe) !== recipeKey(recipe)),
+    }));
+    setToast(nowSaved ? 'Saved to your recipes.' : 'Removed from your saved recipes.');
+  }, [recipe, setData]);
+
   if (!loaded) return null;
   if (!recipe) {
     return (
@@ -38,11 +88,13 @@ export default function RecipeScreen() {
     );
   }
 
-  const fromKitchen = recipe.uses_items.map(norm);
-  const inKitchen = (item: string) => {
-    const n = norm(item);
-    return fromKitchen.some((k) => k === n || k.includes(n) || n.includes(k));
-  };
+  const pantry = pantryFrom(receipts, 30);
+  const inKitchen = (item: string) => recipe.uses_items.some((k) => matches(k, item)) || pantry.some((p) => matches(p.name, item));
+  const missing = recipe.ingredients.filter((ing) => !inKitchen(ing.item)).map((ing) => ing.item);
+  const extras = [...new Set([...recipe.extra_ingredients_needed, ...missing])];
+  // Pantry items this recipe uses, for "I cooked this".
+  const usedPantry: PantryItem[] = pantry.filter((p) => recipe.uses_items.some((u) => matches(u, p.name)));
+
   const n = recipe.nutrition_per_serving;
   const toggle = <T,>(set: Set<T>, value: T) => {
     tap();
@@ -52,9 +104,93 @@ export default function RecipeScreen() {
     return next;
   };
 
+  async function share() {
+    const result = await shareText(recipeToText(recipe!), recipe!.title);
+    if (result === 'copied') setToast('Recipe copied to the clipboard.');
+  }
+
+  async function addMissing() {
+    const added = await addToShopping(extras, recipe!.title);
+    success();
+    setToast(added ? `${added} item${added === 1 ? '' : 's'} added to your shopping list.` : 'Everything is already on your list.');
+  }
+
+  async function confirmCooked() {
+    const chosen = cooking?.chosen ?? new Set<string>();
+    const refs = usedPantry.filter((p) => chosen.has(p.itemId)).map((p) => ({ receiptId: p.receiptId, itemId: p.itemId }));
+    if (refs.length) await setItemsConsumed(refs, true);
+    await recordCooked(recipe!);
+    setCooking(null);
+    success();
+    setToast(
+      refs.length
+        ? `Enjoy! ${refs.length} item${refs.length === 1 ? '' : 's'} marked as used up.`
+        : 'Enjoy! Logged as cooked.',
+    );
+  }
+
   return (
     <Screen topInset={false}>
-      <Stack.Screen options={{ title: '' }} />
+      <Stack.Screen
+        options={{
+          title: '',
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              <Pressable onPress={share} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share recipe">
+                <Ionicons name="share-outline" size={24} color={theme.brand} />
+              </Pressable>
+              <Pressable
+                onPress={onToggleFavorite}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={saved ? 'Remove from saved recipes' : 'Save recipe'}>
+                <Ionicons name={saved ? 'heart' : 'heart-outline'} size={24} color={saved ? theme.danger : theme.brand} />
+              </Pressable>
+            </View>
+          ),
+        }}
+      />
+
+      {cooking && (
+        <Sheet visible title="I cooked this" onClose={() => setCooking(null)}>
+          {usedPantry.length > 0 ? (
+            <>
+              <ThemedText variant="body" color="textSecondary">
+                Which of these are used up now? They leave your kitchen and future recipe ideas.
+              </ThemedText>
+              <Card padded={false}>
+                {usedPantry.map((p, idx) => {
+                  const on = cooking.chosen.has(p.itemId);
+                  return (
+                    <View key={p.itemId}>
+                      {idx > 0 && <Divider />}
+                      <Pressable
+                        onPress={() => setCooking({ chosen: toggle(cooking.chosen, p.itemId) })}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: on }}
+                        style={styles.ingredient}>
+                        <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? theme.brand : theme.textTertiary} />
+                        <ThemedText variant="bodyStrong" style={styles.flex}>
+                          {p.emoji ? `${p.emoji} ` : ''}
+                          {p.name}
+                        </ThemedText>
+                        <ThemedText variant="caption" color="textSecondary">
+                          {Math.round(p.grams)} g
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </Card>
+            </>
+          ) : (
+            <ThemedText variant="body" color="textSecondary">
+              None of the ingredients are in your kitchen right now, so nothing needs to be marked as used up.
+            </ThemedText>
+          )}
+          <Button title="Done cooking" icon="checkmark" onPress={confirmCooked} />
+        </Sheet>
+      )}
 
       <Animated.View entering={FadeInDown.duration(400)} style={[styles.hero, { backgroundColor: recipeTint(i, scheme) }]}>
         <ThemedText style={styles.emoji}>{recipe.emoji || '🍽️'}</ThemedText>
@@ -73,6 +209,8 @@ export default function RecipeScreen() {
           <Meta icon="bar-chart-outline" label={recipe.difficulty} />
         </View>
       </View>
+
+      <Banner tone="brand" message={toast} onDismiss={() => setToast(null)} />
 
       <View style={[styles.why, { backgroundColor: theme.brandSoft }]}>
         <Ionicons name="leaf-outline" size={18} color={theme.brandStrong} />
@@ -104,7 +242,10 @@ export default function RecipeScreen() {
         </View>
       </Card>
 
-      <SectionHeader title="Ingredients" />
+      <SectionHeader
+        title="Ingredients"
+        action={extras.length > 0 ? <Pressable onPress={addMissing} hitSlop={8} accessibilityRole="button"><ThemedText variant="captionStrong" color="brand">Add missing to list</ThemedText></Pressable> : undefined}
+      />
       <Card padded={false}>
         {recipe.ingredients.map((ing, idx) => {
           const have = inKitchen(ing.item);
@@ -116,6 +257,7 @@ export default function RecipeScreen() {
                 onPress={() => setChecked((s) => toggle(s, idx.toString()))}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: isChecked }}
+                accessibilityLabel={`${ing.amount} ${ing.item}`}
                 style={styles.ingredient}>
                 <Ionicons
                   name={isChecked ? 'checkmark-circle' : 'ellipse-outline'}
@@ -138,14 +280,14 @@ export default function RecipeScreen() {
                       In kitchen
                     </ThemedText>
                   </View>
-                ) : recipe.extra_ingredients_needed.some((e) => norm(e) === norm(ing.item)) ? (
+                ) : (
                   <View style={[styles.tag, { backgroundColor: theme.warnSoft }]}>
                     <Ionicons name="cart-outline" size={12} color={theme.warn} />
                     <ThemedText variant="captionStrong" color="warn" style={styles.tagText}>
                       To buy
                     </ThemedText>
                   </View>
-                ) : null}
+                )}
               </Pressable>
             </View>
           );
@@ -162,6 +304,7 @@ export default function RecipeScreen() {
               onPress={() => setDone((s) => toggle(s, idx))}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: isDone }}
+              accessibilityLabel={`Step ${idx + 1}`}
               style={styles.step}>
               <View
                 style={[
@@ -184,6 +327,24 @@ export default function RecipeScreen() {
       <ThemedText variant="caption" color="textTertiary" style={styles.center}>
         Tap ingredients and steps to tick them off while you cook.
       </ThemedText>
+
+      <Button title="I cooked this" icon="restaurant" onPress={() => setCooking({ chosen: new Set(usedPantry.map((p) => p.itemId)) })} />
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <Button title={saved ? 'Saved' : 'Save recipe'} icon={saved ? 'heart' : 'heart-outline'} variant="secondary" onPress={onToggleFavorite} />
+        </View>
+        <View style={styles.flex}>
+          <Button title="Share" icon="share-outline" variant="secondary" onPress={share} />
+        </View>
+      </View>
+      {settings.householdSize !== recipe.servings && (
+        <ThemedText variant="caption" color="textTertiary" style={styles.center}>
+          Written for {recipe.servings} servings; your household is set to {settings.householdSize}.{' '}
+          <ThemedText variant="caption" color="brand" onPress={() => router.navigate('/settings')}>
+            Change
+          </ThemedText>
+        </ThemedText>
+      )}
     </Screen>
   );
 }
@@ -191,6 +352,8 @@ export default function RecipeScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
+  row: { flexDirection: 'row', gap: Spacing.two },
+  headerActions: { flexDirection: 'row', gap: Spacing.four, alignItems: 'center' },
   hero: { height: 180, borderRadius: Radius.xl, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 96, lineHeight: 112 },
   titleBlock: { gap: Spacing.two },

@@ -6,12 +6,25 @@ import { DEMO_MODE } from './config';
 import { demoReceipts, demoRecipes } from './demo';
 import { ensureItemIds } from './nutrition';
 import { deleteReceiptPhoto } from './photos';
-import { DEFAULT_SETTINGS, type RecipeBatch, type Receipt, type Settings, type Usage } from './types';
+import {
+  DEFAULT_SETTINGS,
+  type CookedMeal,
+  type Recipe,
+  type RecipeBatch,
+  type Receipt,
+  type SavedRecipe,
+  type Settings,
+  type ShoppingItem,
+  type Usage,
+} from './types';
 
 const RECEIPTS_KEY = 'nutritrack.receipts.v1';
 const RECIPES_KEY = 'nutritrack.recipes.v1';
 const SETTINGS_KEY = 'nutritrack.settings.v1';
 const USAGE_KEY = 'nutritrack.usage.v1';
+const FAVORITES_KEY = 'nutritrack.favorites.v1';
+const SHOPPING_KEY = 'nutritrack.shopping.v1';
+const COOKED_KEY = 'nutritrack.cooked.v1';
 const API_KEY_KEY = 'nutritrack.anthropicApiKey';
 
 // Storage can be unavailable on web (private windows, sandboxed iframes). Fall back to
@@ -101,6 +114,89 @@ export async function saveSettings(settings: Settings) {
   await kv.set(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+/** Marks items (by receipt and item id) as used up, or back in the kitchen. */
+export async function setItemsConsumed(refs: { receiptId: string; itemId: string }[], consumed: boolean) {
+  const byReceipt = new Map<string, Set<string>>();
+  for (const ref of refs) {
+    if (!byReceipt.has(ref.receiptId)) byReceipt.set(ref.receiptId, new Set());
+    byReceipt.get(ref.receiptId)!.add(ref.itemId);
+  }
+  const list = await loadReceipts();
+  await saveReceipts(
+    list.map((r) => {
+      const ids = byReceipt.get(r.id);
+      if (!ids) return r;
+      return { ...r, items: r.items.map((i) => (ids.has(i.id) ? { ...i, consumed } : i)) };
+    }),
+  );
+}
+
+// Saved recipes
+
+export async function loadFavorites(): Promise<SavedRecipe[]> {
+  return readJson<SavedRecipe[]>(FAVORITES_KEY, []);
+}
+
+export function recipeKey(recipe: Recipe) {
+  return recipe.title.trim().toLowerCase();
+}
+
+export async function toggleFavorite(recipe: Recipe): Promise<boolean> {
+  const list = await loadFavorites();
+  const key = recipeKey(recipe);
+  const exists = list.some((f) => recipeKey(f.recipe) === key);
+  const next = exists
+    ? list.filter((f) => recipeKey(f.recipe) !== key)
+    : [{ id: `fav-${Date.now().toString(36)}`, savedAt: new Date().toISOString(), recipe }, ...list];
+  await kv.set(FAVORITES_KEY, JSON.stringify(next));
+  return !exists;
+}
+
+// Shopping list
+
+export async function loadShopping(): Promise<ShoppingItem[]> {
+  return readJson<ShoppingItem[]>(SHOPPING_KEY, []);
+}
+
+export async function saveShopping(items: ShoppingItem[]) {
+  await kv.set(SHOPPING_KEY, JSON.stringify(items));
+}
+
+/** Adds lines that are not already open on the list; returns how many were new. */
+export async function addToShopping(texts: string[], from?: string): Promise<number> {
+  const list = await loadShopping();
+  const open = new Set(list.filter((i) => !i.done).map((i) => i.text.trim().toLowerCase()));
+  const fresh = texts
+    .map((t) => t.trim())
+    .filter((t) => t && !open.has(t.toLowerCase()))
+    .map((text, n) => ({
+      id: `shop-${Date.now().toString(36)}-${n}`,
+      text,
+      done: false,
+      addedAt: new Date().toISOString(),
+      ...(from && { from }),
+    }));
+  if (fresh.length) await saveShopping([...fresh, ...list]);
+  return fresh.length;
+}
+
+// Cooked meals
+
+export async function loadCooked(): Promise<CookedMeal[]> {
+  return readJson<CookedMeal[]>(COOKED_KEY, []);
+}
+
+export async function recordCooked(recipe: Recipe) {
+  const list = await loadCooked();
+  const meal: CookedMeal = {
+    id: `meal-${Date.now().toString(36)}`,
+    title: recipe.title,
+    emoji: recipe.emoji,
+    cookedAt: new Date().toISOString(),
+  };
+  await kv.set(COOKED_KEY, JSON.stringify([meal, ...list].slice(0, 200)));
+}
+
 // Running total of what Claude calls have cost, kept even when receipts are deleted.
 export type UsageTotals = Usage & { scans: number; recipeRequests: number; estimates: number };
 
@@ -137,7 +233,7 @@ export async function loadDemoData() {
 
 export async function clearAllData() {
   for (const r of await loadReceipts()) await deleteReceiptPhoto(r.photoUri);
-  await Promise.all([saveReceipts([]), kv.remove(RECIPES_KEY)]);
+  await Promise.all([saveReceipts([]), kv.remove(RECIPES_KEY), kv.remove(COOKED_KEY)]);
 }
 
 // SecureStore is native-only; on web the key falls back to browser storage.

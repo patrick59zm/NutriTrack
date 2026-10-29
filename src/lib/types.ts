@@ -128,6 +128,22 @@ export type RecipeBatch = {
   sampleReason?: string;
 };
 
+/** A recipe the user kept; survives new suggestion rounds. */
+export type SavedRecipe = { id: string; savedAt: string; recipe: Recipe };
+
+/** One line on the shopping list. */
+export type ShoppingItem = {
+  id: string;
+  text: string;
+  done: boolean;
+  addedAt: string;
+  /** Recipe the line came from, when it was added from one. */
+  from?: string;
+};
+
+/** A meal the user marked as cooked. */
+export type CookedMeal = { id: string; title: string; emoji: string; cookedAt: string };
+
 export type Language = 'en' | 'de';
 export type Currency = 'EUR' | 'CHF' | 'USD' | 'GBP';
 

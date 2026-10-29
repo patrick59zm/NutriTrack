@@ -29,7 +29,7 @@ import { useScanner } from '@/hooks/use-scanner';
 import { DEMO_MODE } from '@/lib/config';
 import { success } from '@/lib/haptics';
 import { money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
-import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings } from '@/lib/storage';
+import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings, loadShopping } from '@/lib/storage';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 
 const SUMMARY_DAYS = 7;
@@ -42,15 +42,16 @@ function greeting(now = new Date()) {
 }
 
 const loadHome = async () => {
-  const [receipts, batch, apiKey, settings] = await Promise.all([
+  const [receipts, batch, apiKey, settings, shopping] = await Promise.all([
     loadReceipts(),
     loadRecipes(),
     getApiKey(),
     loadSettings(),
+    loadShopping(),
   ]);
   // Ideas made for other dietary preferences are not offered.
   const recipes = recipesMatchDiet(batch, settings.diet) ? batch : null;
-  return { receipts, recipes, hasKey: !!apiKey, settings };
+  return { receipts, recipes, hasKey: !!apiKey, settings, toBuy: shopping.filter((i) => !i.done).length };
 };
 
 export default function TodayScreen() {
@@ -61,13 +62,14 @@ export default function TodayScreen() {
     recipes: null,
     hasKey: false,
     settings: DEFAULT_SETTINGS,
+    toBuy: 0,
   });
 
   const scanner = useScanner({
     onDone: (receipt) => router.push({ pathname: '/receipt/[id]', params: { id: receipt.id, fresh: '1' } }),
   });
 
-  const { receipts, recipes, hasKey, settings } = data;
+  const { receipts, recipes, hasKey, settings, toBuy } = data;
   const recent = receiptsWithin(receipts, SUMMARY_DAYS);
   const weekTotals = sum(recent.map((r) => r.totals));
   const spent = recent.reduce((a, r) => a + (r.totalPrice ?? 0), 0);
@@ -202,6 +204,25 @@ export default function TodayScreen() {
                 </ThemedText>
               </View>
               <IconCircle icon="chevron-forward" size={28} background="transparent" color={theme.brandStrong} />
+            </Card>
+          </PressableCard>
+        </Animated.View>
+      )}
+
+      {toBuy > 0 && (
+        <Animated.View entering={enter()}>
+          <PressableCard onPress={() => router.navigate('/shopping')}>
+            <Card style={styles.keyCard}>
+              <IconCircle icon="cart-outline" size={40} />
+              <View style={styles.flex}>
+                <ThemedText variant="bodyStrong">
+                  {toBuy} thing{toBuy === 1 ? '' : 's'} on your shopping list
+                </ThemedText>
+                <ThemedText variant="caption" color="textSecondary">
+                  Tick them off as you shop.
+                </ThemedText>
+              </View>
+              <IconCircle icon="chevron-forward" size={28} background="transparent" color={theme.textTertiary} />
             </Card>
           </PressableCard>
         </Animated.View>

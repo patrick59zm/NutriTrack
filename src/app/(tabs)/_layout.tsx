@@ -30,6 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: icon('scan-outline', 'scan') }} />
       <Tabs.Screen name="history" options={{ title: 'Receipts', tabBarIcon: icon('receipt-outline', 'receipt') }} />
       <Tabs.Screen name="recipes" options={{ title: 'Recipes', tabBarIcon: icon('restaurant-outline', 'restaurant') }} />
+      <Tabs.Screen name="shopping" options={{ title: 'Shopping', tabBarIcon: icon('cart-outline', 'cart') }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: icon('settings-outline', 'settings') }} />
     </Tabs>
   );
