@@ -57,22 +57,32 @@ export function PantryStrip({ items }: { items: PantryItem[] }) {
   );
 }
 
-/** Compact list row, used for the full pantry. `onConsume` adds a "used up" button. */
-export function PantryRow({ item, onConsume }: { item: PantryItem; onConsume?: () => void }) {
+/**
+ * Compact list row, used for the full pantry. `onConsume` adds a "used up" button and
+ * `onPress` makes the item itself tappable (to cook with it).
+ */
+export function PantryRow({ item, onConsume, onPress }: { item: PantryItem; onConsume?: () => void; onPress?: () => void }) {
   const theme = useTheme();
   const t = useT();
   return (
     <View style={styles.row}>
-      <IconCircle emoji={itemEmoji(item)} size={36} />
-      <View style={styles.flex}>
-        <ThemedText variant="bodyStrong" numberOfLines={1}>
-          {item.name}
-        </ThemedText>
-        <ThemedText variant="caption" color="textSecondary">
-          {item.boughtDaysAgo === 0 ? t('pantry.boughtToday') : t('pantry.boughtAgo', { n: item.boughtDaysAgo })}
-          {item.grams > 0 ? ` · ${Math.round(item.grams)} g` : ''}
-        </ThemedText>
-      </View>
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? t('pantry.cookWith', { name: item.name }) : undefined}
+        style={({ pressed }) => [styles.rowMain, pressed && { opacity: 0.6 }]}>
+        <IconCircle emoji={itemEmoji(item)} size={36} />
+        <View style={styles.flex}>
+          <ThemedText variant="bodyStrong" numberOfLines={1}>
+            {item.name}
+          </ThemedText>
+          <ThemedText variant="caption" color="textSecondary">
+            {item.boughtDaysAgo === 0 ? t('pantry.boughtToday') : t('pantry.boughtAgo', { n: item.boughtDaysAgo })}
+            {item.grams > 0 ? ` · ${Math.round(item.grams)} g` : ''}
+          </ThemedText>
+        </View>
+      </Pressable>
       <FreshnessPill daysLeft={item.daysLeft} />
       {onConsume && (
         <Pressable
@@ -114,5 +124,6 @@ const styles = StyleSheet.create({
   },
   tileName: { minHeight: 36 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
+  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   consume: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

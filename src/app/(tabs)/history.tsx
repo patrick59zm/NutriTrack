@@ -110,6 +110,12 @@ export default function HistoryScreen() {
               format={(n) => money(n, settings.currency)}
               title={t('history.spentPerWeek')}
             />
+            <TrendsChart
+              points={weeks}
+              value={(p) => (p.nutrition.kcal > 0 ? ((p.nutrition.sugar_g * 4) / p.nutrition.kcal) * 100 : 0)}
+              format={(n) => `${Math.round(n)}%`}
+              title={t('history.sugarPerWeek')}
+            />
             <ThemedText variant="caption" color="textTertiary">
               {t('history.chartHint')}
             </ThemedText>

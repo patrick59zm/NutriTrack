@@ -200,7 +200,11 @@ export default function RecipesScreen() {
               {visiblePantry.map((item, i) => (
                 <View key={item.itemId}>
                   {i > 0 && <Divider />}
-                  <PantryRow item={item} onConsume={() => consume(item, true)} />
+                  <PantryRow
+                    item={item}
+                    onConsume={() => consume(item, true)}
+                    onPress={() => setWish(t('recipes.withItem', { name: item.name }))}
+                  />
                 </View>
               ))}
               {pantry.length > PANTRY_PREVIEW && (
@@ -212,7 +216,7 @@ export default function RecipesScreen() {
                 </View>
               )}
               <ThemedText variant="caption" color="textTertiary">
-                {t('recipes.tickHint')}
+                {t('recipes.tickHint')} {t('recipes.tapHint')}
               </ThemedText>
             </View>
           ) : (

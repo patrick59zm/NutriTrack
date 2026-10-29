@@ -13,7 +13,7 @@ import { success, tap } from '@/lib/haptics';
 import { exportBackup, exportCsv, importBackup, pickBackupFile } from '@/lib/backup';
 import { everyLanguage, locale, useT, type Key } from '@/lib/i18n';
 import { fmt } from '@/lib/nutrition';
-import { reminderPlan, requestReminderPermission, syncReminders } from '@/lib/reminders';
+import { REMINDER_HOURS, reminderPlan, reminderTime, requestReminderPermission, syncReminders } from '@/lib/reminders';
 import {
   clearAllData,
   getApiKey,
@@ -51,7 +51,7 @@ const dietWords = (tag: Key) => new Set(everyLanguage(tag).map((w) => w.toLowerC
 
 const loadSettingsScreen = async () => {
   const [apiKey, settings, usage, receipts] = await Promise.all([getApiKey(), loadSettings(), loadUsage(), loadReceipts()]);
-  return { apiKey, settings, usage, upcoming: reminderPlan(receipts).slice(0, 3) };
+  return { apiKey, settings, usage, upcoming: reminderPlan(receipts, new Date(), settings.reminderHour).slice(0, 3) };
 };
 
 export default function SettingsScreen() {
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
     }
     await update({ remindersEnabled: on });
     await syncReminders();
-    setToast(on ? t('settings.remindersOn') : t('settings.remindersOff'));
+    setToast(on ? t('settings.remindersOn', { time: reminderTime(settings.reminderHour) }) : t('settings.remindersOff'));
   }
 
   async function doExport() {
@@ -336,10 +336,31 @@ export default function SettingsScreen() {
         <Card>
           <SwitchRow
             label={t('settings.useSoonLabel')}
-            detail={t('settings.useSoonDetail')}
+            detail={t('settings.useSoonDetail', { time: reminderTime(settings.reminderHour) })}
             value={settings.remindersEnabled}
             onChange={toggleReminders}
           />
+          {settings.remindersEnabled && (
+            <>
+              <ThemedText variant="captionStrong" color="textSecondary">
+                {t('settings.reminderHour')}
+              </ThemedText>
+              <View style={styles.chips}>
+                {REMINDER_HOURS.map((hour) => (
+                  <Chip
+                    key={hour}
+                    label={reminderTime(hour)}
+                    selected={settings.reminderHour === hour}
+                    onPress={async () => {
+                      await update({ reminderHour: hour });
+                      await syncReminders();
+                      reload();
+                    }}
+                  />
+                ))}
+              </View>
+            </>
+          )}
           {settings.remindersEnabled && upcoming.length > 0 && (
             <View style={styles.upcoming}>
               {upcoming.map((u) => (

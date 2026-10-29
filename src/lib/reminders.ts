@@ -5,7 +5,7 @@ import { reminderPlan } from './reminder-plan';
 import { loadReceipts, loadSettings } from './storage';
 import type { Receipt } from './types';
 
-export { reminderPlan } from './reminder-plan';
+export { REMINDER_HOURS, reminderPlan, reminderTime } from './reminder-plan';
 
 // One daily reminder, at 17:00, on days when something in the kitchen is about to go off.
 // Opt-in from Settings; nothing is scheduled until the person turns it on.
@@ -83,18 +83,18 @@ export async function syncReminders() {
   if (!supported) return;
   try {
     const [receipts, settings] = await Promise.all([loadReceipts(), loadSettings()]);
-    await refreshReminders(receipts, settings.remindersEnabled);
+    await refreshReminders(receipts, settings.remindersEnabled, settings.reminderHour);
   } catch {}
 }
 
 /** Replaces all scheduled reminders with the current plan. No-op when reminders are off. */
-export async function refreshReminders(receipts: Receipt[], enabled: boolean) {
+export async function refreshReminders(receipts: Receipt[], enabled: boolean, hour?: number) {
   if (!supported) return;
   try {
     const N = await notifications();
     await N.cancelAllScheduledNotificationsAsync();
     if (!enabled) return;
-    for (const entry of reminderPlan(receipts)) {
+    for (const entry of reminderPlan(receipts, new Date(), hour)) {
       const names =
         entry.items.slice(0, 4).join(', ') + (entry.items.length > 4 ? t('reminder.andMore', { n: entry.items.length - 4 }) : '');
       await N.scheduleNotificationAsync({

@@ -161,6 +161,8 @@ export type Settings = {
   maxCookMinutes: number | null;
   /** Daily notification when something in the kitchen is about to go off. */
   remindersEnabled: boolean;
+  /** Hour of the day (0-23) for that notification. */
+  reminderHour: number;
 };
 
 /** Swiss devices start with francs, everyone else with euros; both can be changed in Settings. */
@@ -182,4 +184,5 @@ export const DEFAULT_SETTINGS: Settings = {
   householdSize: 2,
   maxCookMinutes: null,
   remindersEnabled: false,
+  reminderHour: 17,
 };
