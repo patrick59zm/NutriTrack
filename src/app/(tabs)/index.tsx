@@ -29,6 +29,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useScanner } from '@/hooks/use-scanner';
 import { DEMO_MODE } from '@/lib/config';
 import { success } from '@/lib/haptics';
+import { locale, t, useT } from '@/lib/i18n';
 import { basketMetrics } from '@/lib/insights';
 import { fmt, money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
 import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings, loadShopping } from '@/lib/storage';
@@ -38,9 +39,9 @@ const SUMMARY_DAYS = 7;
 
 function greeting(now = new Date()) {
   const h = now.getHours();
-  if (h < 11) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 11) return t('home.morning');
+  if (h < 17) return t('home.afternoon');
+  return t('home.evening');
 }
 
 const loadHome = async () => {
@@ -58,6 +59,7 @@ const loadHome = async () => {
 
 export default function TodayScreen() {
   const theme = useTheme();
+  const t = useT();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { data, loaded, reload } = useFocusData(loadHome, {
     receipts: [],
@@ -85,7 +87,7 @@ export default function TodayScreen() {
   const pantry = pantryFrom(receipts, SUMMARY_DAYS);
   const urgent = pantry.filter((p) => p.daysLeft <= 4);
   const strip = (urgent.length >= 3 ? urgent : pantry).slice(0, 10);
-  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
 
   let section = 0;
   const enter = () => FadeInDown.duration(420).delay(60 * section++);
@@ -99,25 +101,25 @@ export default function TodayScreen() {
           <ThemedText style={styles.heroEmoji}>🧾</ThemedText>
           <View style={styles.heroText}>
             <ThemedText variant="title" style={styles.white}>
-              Scan a receipt
+              {t('home.heroTitle')}
             </ThemedText>
             <ThemedText variant="body" style={styles.heroSub}>
-              Snap your Kassenzettel and get the nutrition of every item — plus recipes for what you bought.
+              {t('home.heroSub')}
             </ThemedText>
           </View>
           <View style={styles.heroButtons}>
             {!scanner.isWeb && (
               <View style={styles.flex}>
-                <Button title="Take photo" icon="camera" variant="onBrand" onPress={() => scanner.pick('camera')} />
+                <Button title={t('common.takePhoto')} icon="camera" variant="onBrand" onPress={() => scanner.pick('camera')} />
               </View>
             )}
             <View style={styles.flex}>
               {scanner.isWeb ? (
                 <ImageFileInput onPick={scanner.analyzePhoto}>
-                  <Button title="Upload receipt photo" icon="cloud-upload-outline" variant="onBrand" onPress={() => {}} />
+                  <Button title={t('home.upload')} icon="cloud-upload-outline" variant="onBrand" onPress={() => {}} />
                 </ImageFileInput>
               ) : (
-                <Button title="Gallery" icon="images-outline" variant="onBrandGhost" onPress={() => scanner.pick('library')} />
+                <Button title={t('common.gallery')} icon="images-outline" variant="onBrandGhost" onPress={() => scanner.pick('library')} />
               )}
             </View>
           </View>
@@ -129,7 +131,7 @@ export default function TodayScreen() {
         <Banner
           tone="warn"
           icon="flask-outline"
-          message="Demo version: allow Claude when asked and it reads your own receipt on your Claude account. Otherwise you get a sample result."
+          message={t('home.demoBanner')}
         />
       )}
 
@@ -139,9 +141,9 @@ export default function TodayScreen() {
             <Card style={styles.keyCard}>
               <IconCircle icon="key-outline" background={theme.warnSoft} color={theme.warn} size={40} />
               <View style={styles.flex}>
-                <ThemedText variant="bodyStrong">Connect Claude to scan</ThemedText>
+                <ThemedText variant="bodyStrong">{t('home.connectTitle')}</ThemedText>
                 <ThemedText variant="caption" color="textSecondary">
-                  Add your Anthropic API key in Settings. Takes 30 seconds.
+                  {t('home.connectSub')}
                 </ThemedText>
               </View>
               <IconCircle icon="chevron-forward" size={28} background="transparent" color={theme.textTertiary} />
@@ -154,10 +156,10 @@ export default function TodayScreen() {
         <Animated.View entering={enter()}>
           <EmptyState
             emoji="🥕"
-            title="Your kitchen starts here"
-            message="Scan your first receipt, or explore NutriTrack with a few sample shopping trips.">
+            title={t('home.emptyTitle')}
+            message={t('home.emptyMessage')}>
             <Button
-              title="Try with sample data"
+              title={t('home.trySample')}
               icon="sparkles"
               variant="secondary"
               onPress={async () => {
@@ -172,23 +174,23 @@ export default function TodayScreen() {
 
       {recent.length > 0 && (
         <Animated.View entering={enter()} style={styles.section}>
-          <SectionHeader title="This week" />
+          <SectionHeader title={t('home.thisWeek')} />
           <Card>
-            <NutritionPanel nutrition={weekTotals} caption="kcal bought" />
+            <NutritionPanel nutrition={weekTotals} caption={t('home.kcalBought')} />
             <View style={styles.stats}>
-              <StatTile label="Receipts" value={String(recent.length)} icon="receipt-outline" />
-              <StatTile label="Items" value={String(foodCount)} icon="basket-outline" />
-              <StatTile label="Spent" value={money(spent, settings.currency)} icon="wallet-outline" />
+              <StatTile label={t('home.receipts')} value={String(recent.length)} icon="receipt-outline" />
+              <StatTile label={t('home.items')} value={String(foodCount)} icon="basket-outline" />
+              <StatTile label={t('home.spent')} value={money(spent, settings.currency)} icon="wallet-outline" />
             </View>
             <View style={[styles.perPerson, { backgroundColor: theme.brandSoft }]}>
               <ThemedText variant="headline" color="brandStrong">
                 ≈ {fmt(perPersonDay)} kcal
               </ThemedText>
               <ThemedText variant="caption" color="textSecondary" style={styles.flex}>
-                bought per person and day for {settings.householdSize} {settings.householdSize === 1 ? 'person' : 'people'}
+                {t('home.perPerson', { n: settings.householdSize })}
                 {' · '}
                 <ThemedText variant="caption" color="brand" onPress={() => router.navigate('/settings')}>
-                  Change
+                  {t('common.change')}
                 </ThemedText>
               </ThemedText>
             </View>
@@ -198,7 +200,7 @@ export default function TodayScreen() {
 
       {metrics.length > 0 && (
         <Animated.View entering={enter()} style={styles.section}>
-          <SectionHeader title="Basket check" />
+          <SectionHeader title={t('home.basketCheck')} />
           <Card>
             <BasketCheck metrics={metrics} />
           </Card>
@@ -208,8 +210,8 @@ export default function TodayScreen() {
       {strip.length > 0 && (
         <Animated.View entering={enter()} style={styles.section}>
           <SectionHeader
-            title={urgent.length >= 3 ? 'Use soon' : 'In your kitchen'}
-            action={<TextLink title="Cook with it" onPress={() => router.navigate('/recipes')} />}
+            title={urgent.length >= 3 ? t('home.useSoon') : t('home.inKitchen')}
+            action={<TextLink title={t('home.cookWithIt')} onPress={() => router.navigate('/recipes')} />}
           />
           <PantryStrip items={strip} />
         </Animated.View>
@@ -224,12 +226,10 @@ export default function TodayScreen() {
               </ThemedText>
               <View style={styles.flex}>
                 <ThemedText variant="headline" color="brandStrong">
-                  {recipes?.recipes.length ? `${recipes.recipes.length} recipe ideas ready` : 'What should I cook?'}
+                  {recipes?.recipes.length ? t('home.ideasReady', { n: recipes.recipes.length }) : t('home.whatToCook')}
                 </ThemedText>
                 <ThemedText variant="caption" color="textSecondary">
-                  {recipes?.recipes.length
-                    ? recipes.recipes[0].title
-                    : 'Get recipes that use up what you just bought'}
+                  {recipes?.recipes.length ? recipes.recipes[0].title : t('home.getRecipes')}
                 </ThemedText>
               </View>
               <IconCircle icon="chevron-forward" size={28} background="transparent" color={theme.brandStrong} />
@@ -245,10 +245,10 @@ export default function TodayScreen() {
               <IconCircle icon="cart-outline" size={40} />
               <View style={styles.flex}>
                 <ThemedText variant="bodyStrong">
-                  {toBuy} thing{toBuy === 1 ? '' : 's'} on your shopping list
+                  {t('home.shoppingCount', { n: toBuy })}
                 </ThemedText>
                 <ThemedText variant="caption" color="textSecondary">
-                  Tick them off as you shop.
+                  {t('home.tickOff')}
                 </ThemedText>
               </View>
               <IconCircle icon="chevron-forward" size={28} background="transparent" color={theme.textTertiary} />
@@ -260,8 +260,8 @@ export default function TodayScreen() {
       {receipts.length > 0 && (
         <Animated.View entering={enter()} style={styles.section}>
           <SectionHeader
-            title="Recent receipts"
-            action={<TextLink title="See all" onPress={() => router.navigate('/history')} />}
+            title={t('home.recentReceipts')}
+            action={<TextLink title={t('home.seeAll')} onPress={() => router.navigate('/history')} />}
           />
           {receipts.slice(0, 3).map((r) => (
             <ReceiptRow key={r.id} receipt={r} />

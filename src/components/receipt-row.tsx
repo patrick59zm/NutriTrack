@@ -8,6 +8,7 @@ import { Card, PressableCard } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { itemEmoji } from '@/lib/categories';
+import { useT } from '@/lib/i18n';
 import { fmt, money, relativeDay } from '@/lib/nutrition';
 import type { Receipt } from '@/lib/types';
 
@@ -45,6 +46,7 @@ export function StoreAvatar({ store, size = 46 }: { store: string | null; size?:
 
 export function ReceiptRow({ receipt }: { receipt: Receipt }) {
   const theme = useTheme();
+  const t = useT();
   const food = receipt.items.filter((i) => i.is_food);
   const emojis = [...new Set(food.map(itemEmoji))].slice(0, 7).join(' ');
   return (
@@ -54,10 +56,10 @@ export function ReceiptRow({ receipt }: { receipt: Receipt }) {
           <StoreAvatar store={receipt.store} />
           <View style={styles.flex}>
             <ThemedText variant="headline" numberOfLines={1}>
-              {receipt.store ?? 'Receipt'}
+              {receipt.store ?? t('common.receipt')}
             </ThemedText>
             <ThemedText variant="caption" color="textSecondary">
-              {relativeDay(receipt.purchasedAt)} · {food.length} items
+              {relativeDay(receipt.purchasedAt)} · {t('common.items', { n: food.length })}
               {receipt.totalPrice != null ? ` · ${money(receipt.totalPrice, receipt.currency)}` : ''}
             </ThemedText>
           </View>

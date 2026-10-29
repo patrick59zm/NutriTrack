@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { DEMO_MODE } from './config';
 import { demoRecipesFor, demoScanAnalysis } from './demo';
+import { t } from './i18n';
 import type { PreparedImage } from './image';
 import { daysSince, newId, normalizeCurrency, priceCheck, withTotals, sum } from './nutrition';
 import { jsonInstruction, parseLenient, parseLocalDate } from './parse';
@@ -21,8 +22,8 @@ import {
 } from './types';
 import {
   isUnavailable,
-  NO_CLAUDE_HERE,
-  NO_PHOTOS_HERE,
+  noClaudeHere,
+  noPhotosHere,
   toBlob,
   unavailableReason,
   viewerClaude,
@@ -42,7 +43,7 @@ const fallbackParams = () => ({
 
 export class MissingApiKeyError extends Error {
   constructor() {
-    super('Add your Anthropic API key in Settings first.');
+    super(t('error.noKey'));
   }
 }
 
@@ -127,7 +128,7 @@ export async function analyzeReceipt(
     ? await analyzeWithViewerClaude(images, settings.language)
     : await requestAnalysis(images, settings.language, options);
   if (!analysis.is_receipt || analysis.items.length === 0) {
-    throw new Error('No receipt found in this photo. Try again with the whole receipt in view.');
+    throw new Error(t('error.noReceipt'));
   }
 
   const now = new Date();
@@ -158,9 +159,13 @@ export async function analyzeReceipt(
 function scanWarnings(analysis: ReceiptAnalysis) {
   const check = priceCheck(analysis.items, analysis.total_price);
   if (check.ok) return [];
-  const direction = check.gap > 0 ? 'more' : 'less';
   return [
-    `The item prices add up to ${check.sum.toFixed(2)}, ${Math.abs(check.gap).toFixed(2)} ${direction} than the printed total of ${check.total?.toFixed(2)}. Some lines may be missing, doubled or misread. Check the items or scan again.`,
+    t('error.priceGap', {
+      sum: check.sum.toFixed(2),
+      gap: Math.abs(check.gap).toFixed(2),
+      direction: t(check.gap > 0 ? 'error.more' : 'error.less'),
+      total: check.total?.toFixed(2) ?? '?',
+    }),
   ];
 }
 
@@ -190,10 +195,10 @@ async function requestAnalysis(
       },
       { signal: options.signal },
     );
-    if (response.stop_reason === 'refusal') throw new Error('The request was declined. Try another photo.');
-    if (response.stop_reason === 'max_tokens') throw new Error('The receipt was too long to analyze in one go.');
+    if (response.stop_reason === 'refusal') throw new Error(t('error.declined'));
+    if (response.stop_reason === 'max_tokens') throw new Error(t('error.tooLong'));
     const analysis = response.parsed_output;
-    if (!analysis) throw new Error('Could not read the analysis. Please try again.');
+    if (!analysis) throw new Error(t('error.unreadable'));
     return { analysis, usage: usageOf(response) };
   };
 
@@ -235,16 +240,16 @@ async function analyzeWithViewerClaude(
   language: Language,
 ): Promise<{ analysis: ReceiptAnalysis; usage?: Usage; sampleReason?: string }> {
   const claude = await viewerClaude();
-  if (!claude) return { analysis: await demoScanAnalysis(), sampleReason: NO_CLAUDE_HERE };
+  if (!claude) return { analysis: await demoScanAnalysis(), sampleReason: noClaudeHere() };
   const limits = await claude.limits().catch(() => null);
-  if (!limits?.images) return { analysis: await demoScanAnalysis(), sampleReason: NO_PHOTOS_HERE };
+  if (!limits?.images) return { analysis: await demoScanAnalysis(), sampleReason: noPhotosHere() };
 
   const sent = images.slice(0, limits.images.maxCount);
   const prompt = `${RECEIPT_SYSTEM}\n\n${receiptInstruction(sent.length, language)}\n\n${jsonInstruction(ReceiptAnalysisSchema)}`;
   try {
     const raw = await claude.json(prompt, { images: sent.map(toBlob), cache: false });
     return {
-      analysis: parseLenient(ReceiptAnalysisSchema, raw, 'Could not read the receipt analysis. Please try again.'),
+      analysis: parseLenient(ReceiptAnalysisSchema, raw, t('error.unreadable')),
     };
   } catch (e) {
     if (isUnavailable(e)) return { analysis: await demoScanAnalysis(), sampleReason: unavailableReason(e) };
@@ -261,7 +266,7 @@ const ITEM_SYSTEM = `You estimate the nutrition of one grocery item from its nam
 /** Nutrition and details for an item typed in by the user, e.g. "Bananen 1 kg". */
 export async function estimateItem(description: string, settings: Settings): Promise<ReceiptItem> {
   const text = description.trim();
-  if (!text) throw new Error('Type what you bought first.');
+  if (!text) throw new Error(t('error.typeFirst'));
   const request = `Item: ${text}\nWrite the product name in ${languageName(settings.language)}.`;
 
   let estimate: ReceiptItemAnalysis | null = null;
@@ -273,7 +278,7 @@ export async function estimateItem(description: string, settings: Settings): Pro
           cache: false,
           modelTier: 'quick',
         });
-        estimate = parseLenient(ReceiptItemSchema, raw, 'Could not estimate this item. Please try again.');
+        estimate = parseLenient(ReceiptItemSchema, raw, t('error.estimateFailed'));
       } catch (e) {
         if (!isUnavailable(e)) throw e instanceof Error ? e : new Error(viewerErrorMessage(e));
       }
@@ -288,7 +293,7 @@ export async function estimateItem(description: string, settings: Settings): Pro
       system: ITEM_SYSTEM,
       messages: [{ role: 'user', content: request }],
     });
-    if (!response.parsed_output) throw new Error('Could not estimate this item. Please try again.');
+    if (!response.parsed_output) throw new Error(t('error.estimateFailed'));
     estimate = response.parsed_output;
     await recordUsage('estimates', usageOf(response));
   }
@@ -346,7 +351,7 @@ export async function suggestRecipes(opts: {
         days_left: i.shelf_life_days - daysSince(r.purchasedAt, now),
       })),
   );
-  if (pantry.length === 0) throw new Error('No food items in the selected time window yet.');
+  if (pantry.length === 0) throw new Error(t('error.noFoodInWindow'));
 
   const diet = settings.diet.trim();
   const wish = opts.wish?.trim();
@@ -370,9 +375,9 @@ ${wish ? `Today's wish: ${wish}\n` : ''}Suggest ${opts.count ?? 4} varied recipe
     messages: [{ role: 'user', content: request }],
   });
 
-  if (response.stop_reason === 'refusal') throw new Error('The request was declined. Try again.');
+  if (response.stop_reason === 'refusal') throw new Error(t('error.declinedRecipes'));
   const result = response.parsed_output;
-  if (!result) throw new Error('Could not read the recipe suggestions. Please try again.');
+  if (!result) throw new Error(t('error.recipesUnreadable'));
   const usage = usageOf(response);
   await recordUsage('recipeRequests', usage);
   return { recipes: result.recipes, usage };
@@ -384,12 +389,12 @@ async function recipesWithViewerClaude(
   diet: string,
 ): Promise<RecipeSuggestions> {
   const claude = await viewerClaude();
-  if (!claude) return { recipes: await demoRecipesFor(pantryNames, diet), sampleReason: NO_CLAUDE_HERE };
+  if (!claude) return { recipes: await demoRecipesFor(pantryNames, diet), sampleReason: noClaudeHere() };
   const prompt = `${RECIPE_SYSTEM}\n\n${request}\n\n${jsonInstruction(RecipeSuggestionsSchema)}`;
   try {
     const raw = await claude.json(prompt, { cache: false });
     return {
-      recipes: parseLenient(RecipeSuggestionsSchema, raw, 'Could not read the recipe ideas. Please try again.').recipes,
+      recipes: parseLenient(RecipeSuggestionsSchema, raw, t('error.recipesUnreadable')).recipes,
     };
   } catch (e) {
     if (isUnavailable(e)) return { recipes: await demoRecipesFor(pantryNames, diet), sampleReason: unavailableReason(e) };
@@ -407,11 +412,11 @@ export function isCancelled(e: unknown) {
 
 export function describeError(e: unknown): string {
   if (e instanceof MissingApiKeyError) return e.message;
-  if (isCancelled(e)) return 'Scan cancelled.';
-  if (e instanceof Anthropic.AuthenticationError) return 'Your API key was rejected. Check it in Settings.';
-  if (e instanceof Anthropic.RateLimitError) return 'Rate limit reached. Wait a moment and try again.';
-  if (e instanceof Anthropic.APIConnectionError) return 'No connection to the API. Check your internet.';
-  if (e instanceof Anthropic.APIError) return `API error (${e.status ?? '?'}): ${e.message}`;
+  if (isCancelled(e)) return t('error.cancelled');
+  if (e instanceof Anthropic.AuthenticationError) return t('error.keyRejected');
+  if (e instanceof Anthropic.RateLimitError) return t('error.rateLimit');
+  if (e instanceof Anthropic.APIConnectionError) return t('error.noConnection');
+  if (e instanceof Anthropic.APIError) return t('error.api', { status: e.status ?? '?', message: e.message });
   if (e instanceof Error) return e.message;
-  return 'Something went wrong.';
+  return t('error.generic');
 }

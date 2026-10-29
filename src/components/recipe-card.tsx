@@ -14,6 +14,7 @@ import { Card, PressableCard } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/lib/i18n';
 import { fmt } from '@/lib/nutrition';
 import type { Recipe } from '@/lib/types';
 
@@ -51,6 +52,7 @@ export function RecipeCard({
   saved?: boolean;
 }) {
   const theme = useTheme();
+  const t = useT();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const extras = recipe.extra_ingredients_needed.length;
   return (
@@ -69,7 +71,7 @@ export function RecipeCard({
             {saved && <Ionicons name="heart" size={16} color={theme.danger} />}
           </View>
           <View style={styles.metaRow}>
-            <Meta icon="time-outline" label={`${recipe.time_minutes} min`} />
+            <Meta icon="time-outline" label={t('common.min', { n: recipe.time_minutes })} />
             <Meta icon="people-outline" label={`${recipe.servings}`} />
             <Meta icon="flame" label={`${fmt(recipe.nutrition_per_serving.kcal)} kcal`} />
           </View>
@@ -80,14 +82,14 @@ export function RecipeCard({
             <View style={[styles.badge, { backgroundColor: theme.brandSoft }]}>
               <Ionicons name="checkmark-circle" size={13} color={theme.brandStrong} />
               <ThemedText variant="captionStrong" color="brandStrong" style={styles.badgeText}>
-                {recipe.uses_items.length} from your kitchen
+                {t('card.fromKitchen', { n: recipe.uses_items.length })}
               </ThemedText>
             </View>
             {extras > 0 && (
               <View style={[styles.badge, { backgroundColor: theme.surfaceMuted }]}>
                 <Ionicons name="cart-outline" size={13} color={theme.textSecondary} />
                 <ThemedText variant="captionStrong" color="textSecondary" style={styles.badgeText}>
-                  +{extras} to buy
+                  {t('card.toBuy', { n: extras })}
                 </ThemedText>
               </View>
             )}

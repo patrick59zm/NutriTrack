@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { DEMO_MODE } from './config';
 import { demoReceipts, demoRecipes } from './demo';
+import { setLanguage } from './i18n';
 import { ensureItemIds } from './nutrition';
 import { deleteReceiptPhoto } from './photos';
 import {
@@ -107,10 +108,13 @@ export async function saveRecipes(batch: RecipeBatch) {
 }
 
 export async function loadSettings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...(await readJson<Partial<Settings>>(SETTINGS_KEY, {})) };
+  const settings = { ...DEFAULT_SETTINGS, ...(await readJson<Partial<Settings>>(SETTINGS_KEY, {})) };
+  setLanguage(settings.language);
+  return settings;
 }
 
 export async function saveSettings(settings: Settings) {
+  setLanguage(settings.language);
   await kv.set(SETTINGS_KEY, JSON.stringify(settings));
 }
 

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { t } from './i18n';
 import { pantryFrom } from './nutrition';
 import { loadReceipts, loadSettings } from './storage';
 import type { Receipt } from './types';
@@ -24,7 +25,7 @@ export async function requestReminderPermission(): Promise<boolean> {
     const N = await notifications();
     if (Platform.OS === 'android') {
       await N.setNotificationChannelAsync(CHANNEL, {
-        name: 'Food to use soon',
+        name: t('reminder.channel'),
         importance: N.AndroidImportance.DEFAULT,
         sound: null,
       });
@@ -85,11 +86,12 @@ export async function refreshReminders(receipts: Receipt[], enabled: boolean) {
     await N.cancelAllScheduledNotificationsAsync();
     if (!enabled) return;
     for (const entry of reminderPlan(receipts)) {
-      const names = entry.items.slice(0, 4).join(', ') + (entry.items.length > 4 ? ` and ${entry.items.length - 4} more` : '');
+      const names =
+        entry.items.slice(0, 4).join(', ') + (entry.items.length > 4 ? t('reminder.andMore', { n: entry.items.length - 4 }) : '');
       await N.scheduleNotificationAsync({
         content: {
-          title: entry.items.length === 1 ? 'Use it soon' : `${entry.items.length} things to use soon`,
-          body: `${names}. Open NutriTrack for recipe ideas.`,
+          title: t('reminder.title', { n: entry.items.length }),
+          body: t('reminder.body', { names }),
         },
         trigger: { type: N.SchedulableTriggerInputTypes.DATE, date: entry.date, channelId: CHANNEL },
       });

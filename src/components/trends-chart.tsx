@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { tap } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import type { WeekPoint } from '@/lib/insights';
 
 const HEIGHT = 150;
@@ -38,6 +39,7 @@ export function TrendsChart({
   title: string;
 }) {
   const theme = useTheme();
+  const t = useT();
   const [width, setWidth] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const values = points.map(value);
@@ -61,7 +63,7 @@ export function TrendsChart({
         </ThemedText>
         <ThemedText variant="caption" color="textTertiary">
           {points[shown]?.label}
-          {points[shown]?.receipts ? ` · ${points[shown].receipts} receipt${points[shown].receipts === 1 ? '' : 's'}` : ''}
+          {points[shown]?.receipts ? ` · ${t('common.receipts', { n: points[shown].receipts })}` : ''}
         </ThemedText>
       </View>
       {width > 0 && (
@@ -124,7 +126,7 @@ export function TrendsChart({
                   setSelected(i === selected ? null : i);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Week of ${p.label}: ${format(values[i])}`}
+                accessibilityLabel={t('chart.weekOf', { label: p.label, value: format(values[i]) })}
                 style={styles.hit}
               />
             ))}

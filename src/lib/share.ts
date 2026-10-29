@@ -1,23 +1,29 @@
 import { Platform, Share } from 'react-native';
 
+import { t } from './i18n';
 import type { Recipe } from './types';
 
 export function recipeToText(recipe: Recipe) {
   const lines = [
     `${recipe.emoji ? `${recipe.emoji} ` : ''}${recipe.title}`,
-    `${recipe.time_minutes} min · ${recipe.servings} servings · ${recipe.difficulty}`,
+    `${t('common.min', { n: recipe.time_minutes })} · ${t('common.servings', { n: recipe.servings })} · ${recipe.difficulty}`,
     '',
     recipe.description,
     '',
-    'Ingredients',
+    t('recipe.ingredients'),
     ...recipe.ingredients.map((i) => `• ${i.amount} ${i.item}`),
     '',
-    'Steps',
+    t('recipe.steps'),
     ...recipe.steps.map((s, n) => `${n + 1}. ${s}`),
     '',
-    `Per serving: ${Math.round(recipe.nutrition_per_serving.kcal)} kcal · ${Math.round(recipe.nutrition_per_serving.protein_g)} g protein · ${Math.round(recipe.nutrition_per_serving.carbs_g)} g carbs · ${Math.round(recipe.nutrition_per_serving.fat_g)} g fat`,
+    t('recipe.perServingLine', {
+      kcal: Math.round(recipe.nutrition_per_serving.kcal),
+      protein: Math.round(recipe.nutrition_per_serving.protein_g),
+      carbs: Math.round(recipe.nutrition_per_serving.carbs_g),
+      fat: Math.round(recipe.nutrition_per_serving.fat_g),
+    }),
     '',
-    'Shared from NutriTrack',
+    t('recipe.sharedFrom'),
   ];
   return lines.join('\n');
 }

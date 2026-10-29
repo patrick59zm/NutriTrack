@@ -15,14 +15,9 @@ import Animated, {
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import type { ScanPhase } from '@/lib/claude';
+import { useT, type Key } from '@/lib/i18n';
 
-const STEPS = [
-  'Reading the receipt…',
-  'Recognizing products…',
-  'Estimating pack sizes…',
-  'Calculating nutrition…',
-  'Checking shelf life…',
-];
+const STEPS: Key[] = ['scan.step1', 'scan.step2', 'scan.step3', 'scan.step4', 'scan.step5'];
 
 const FRAME_HEIGHT = 340;
 
@@ -39,6 +34,7 @@ export function ScanningOverlay({
 }) {
   const [step, setStep] = useState(0);
   const line = useSharedValue(0);
+  const t = useT();
 
   useEffect(() => {
     if (!visible) return;
@@ -75,19 +71,17 @@ export function ScanningOverlay({
             <ActivityIndicator color="#7BE0AA" />
             <Animated.View key={phase === 'checking' ? 'checking' : step} entering={FadeIn.duration(300)}>
               <ThemedText variant="headline" style={styles.white}>
-                {phase === 'checking' ? 'Double-checking the prices…' : STEPS[step]}
+                {phase === 'checking' ? t('scan.checking') : t(STEPS[step])}
               </ThemedText>
             </Animated.View>
           </View>
           <ThemedText variant="caption" style={styles.muted}>
-            {phase === 'checking'
-              ? 'The prices did not add up to the total, so Claude is reading the receipt a second time.'
-              : 'Claude is reading every line. This usually takes 20–60 seconds.'}
+            {phase === 'checking' ? t('scan.checkingNote') : t('scan.note')}
           </ThemedText>
           {onCancel && (
             <Pressable onPress={onCancel} accessibilityRole="button" style={styles.cancel} hitSlop={8}>
               <ThemedText variant="captionStrong" style={styles.white}>
-                Cancel
+                {t('common.cancel')}
               </ThemedText>
             </Pressable>
           )}

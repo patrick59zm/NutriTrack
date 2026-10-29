@@ -10,9 +10,9 @@ Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the rec
 - **Receipt**: the purchase's calories and macros, where the calories come from by category, and every item with its own emoji. Tap an item to compare its values per 100 g with the amount bought.
 - **Receipts**: all scans grouped by week, with 30-day totals.
 - **Recipes**: your kitchen for the last 3, 5, 7 or 14 days, with freshness labels ("1 day", "3 days") based on estimated shelf life. Tap **Suggest recipes** to get dishes built mainly from those items. A recipe opens with nutrition per serving, ingredients marked "In kitchen" or "To buy", and steps you can tick off while cooking.
-- **Settings**: Anthropic API key (kept in the device keychain), language for product names and recipes (English or German), dietary preferences, sample data, delete all.
+- **Settings**: Anthropic API key (kept in the device keychain), language (English or German, for the whole app as well as product names and recipes), dietary preferences, sample data, delete all.
 
-Light and dark mode follow the device setting.
+Light and dark mode follow the device setting. The interface is available in English and German (Swiss spelling).
 
 ## Install on Android
 

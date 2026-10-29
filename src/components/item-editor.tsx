@@ -4,9 +4,10 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Banner, Button, Chip, Field, Sheet, SwitchRow } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
-import { CATEGORY_META, itemEmoji } from '@/lib/categories';
+import { CATEGORY_META, categoryMeta, itemEmoji } from '@/lib/categories';
 import { describeError, estimateItem } from '@/lib/claude';
 import { failure, success } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import { fmt, withTotals } from '@/lib/nutrition';
 import type { ReceiptItem, Settings } from '@/lib/types';
 
@@ -41,6 +42,7 @@ export function ItemEditor({
   const [price, setPrice] = useState(item?.price != null ? item.price.toFixed(2) : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   async function estimate(text: string) {
     setError(null);
@@ -65,7 +67,7 @@ export function ItemEditor({
     if (!draft) return;
     const trimmed = name.trim();
     if (!trimmed) {
-      setError('Give the item a name.');
+      setError(t('editor.nameRequired'));
       return;
     }
     const q = parseNumber(quantity);
@@ -84,7 +86,7 @@ export function ItemEditor({
     onSave(next);
   }
 
-  const title = item ? 'Edit item' : 'Add item';
+  const title = item ? t('editor.editTitle') : t('editor.addTitle');
   const per100 = draft?.nutrition_per_100g;
 
   return (
@@ -92,8 +94,8 @@ export function ItemEditor({
       {!draft ? (
         <>
           <Field
-            label="What did you buy?"
-            placeholder="e.g. Bananen 1 kg, Greek yogurt 500 g"
+            label={t('editor.whatBought')}
+            placeholder={t('editor.placeholder')}
             value={description}
             onChangeText={setDescription}
             autoFocus
@@ -101,12 +103,11 @@ export function ItemEditor({
             onSubmitEditing={() => description.trim() && estimate(description)}
           />
           <ThemedText variant="caption" color="textTertiary">
-            Claude fills in weight, nutrition and shelf life from the name. You can adjust everything
-            afterwards.
+            {t('editor.claudeFills')}
           </ThemedText>
           <Banner message={error} onDismiss={() => setError(null)} />
           <Button
-            title={busy ? 'Estimating…' : 'Estimate with Claude'}
+            title={busy ? t('editor.estimating') : t('editor.estimate')}
             icon="sparkles"
             loading={busy}
             disabled={!description.trim()}
@@ -119,39 +120,39 @@ export function ItemEditor({
             <ThemedText style={styles.previewEmoji}>{itemEmoji(draft)}</ThemedText>
             <View style={styles.flex}>
               <ThemedText variant="caption" color="textSecondary">
-                {CATEGORY_META[draft.category]?.label ?? 'Other food'}
-                {per100 ? ` · ${fmt(per100.kcal)} kcal per 100 g` : ''}
+                {categoryMeta(draft.category).label}
+                {per100 ? t('editor.kcalPer100', { kcal: fmt(per100.kcal) }) : ''}
               </ThemedText>
               {draft.receipt_text && draft.receipt_text !== draft.name && (
                 <ThemedText variant="caption" color="textTertiary">
-                  On the receipt: {draft.receipt_text}
+                  {t('editor.onReceipt', { text: draft.receipt_text })}
                 </ThemedText>
               )}
             </View>
           </View>
 
-          <Field label="Name" value={name} onChangeText={setName} autoCapitalize="sentences" />
+          <Field label={t('editor.name')} value={name} onChangeText={setName} autoCapitalize="sentences" />
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Field label="Quantity" value={quantity} onChangeText={setQuantity} keyboardType="decimal-pad" />
+              <Field label={t('editor.quantity')} value={quantity} onChangeText={setQuantity} keyboardType="decimal-pad" />
             </View>
             <View style={styles.flex}>
               <Field
-                label="Total weight (g)"
+                label={t('editor.weight')}
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="number-pad"
-                hint="ml for drinks"
+                hint={t('editor.mlHint')}
               />
             </View>
             <View style={styles.flex}>
-              <Field label={`Price (${settings.currency})`} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+              <Field label={t('editor.price', { currency: settings.currency })} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
             </View>
           </View>
 
           <SwitchRow
-            label="Food"
-            detail="Off for deposits, bags, household goods"
+            label={t('editor.food')}
+            detail={t('editor.foodDetail')}
             value={draft.is_food}
             onChange={(is_food) => setDraft({ ...draft, is_food })}
           />
@@ -160,7 +161,7 @@ export function ItemEditor({
             {Object.entries(CATEGORY_META).map(([key, meta]) => (
               <Chip
                 key={key}
-                label={`${meta.emoji} ${meta.label}`}
+                label={`${meta.emoji} ${t(meta.key)}`}
                 selected={draft.category === key}
                 onPress={() => setDraft({ ...draft, category: key, is_food: key !== 'non_food' && draft.is_food })}
               />
@@ -170,15 +171,15 @@ export function ItemEditor({
           <Banner message={error} onDismiss={() => setError(null)} />
 
           <Button
-            title={busy ? 'Estimating…' : 'Re-estimate nutrition from the name'}
+            title={busy ? t('editor.estimating') : t('editor.reestimate')}
             icon="sparkles"
             variant="secondary"
             loading={busy}
             disabled={!name.trim()}
             onPress={() => estimate(name)}
           />
-          <Button title={item ? 'Save changes' : 'Add to receipt'} icon="checkmark" onPress={save} />
-          {onDelete && <Button title="Remove item" icon="trash-outline" variant="danger" onPress={onDelete} />}
+          <Button title={item ? t('editor.saveChanges') : t('editor.addToReceipt')} icon="checkmark" onPress={save} />
+          {onDelete && <Button title={t('editor.removeItem')} icon="trash-outline" variant="danger" onPress={onDelete} />}
         </>
       )}
     </Sheet>

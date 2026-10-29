@@ -1,3 +1,4 @@
+import { locale, t } from './i18n';
 import type { Currency, Nutrition, Receipt, RecipeBatch, ReceiptItem, ReceiptItemAnalysis } from './types';
 
 export const EMPTY_NUTRITION: Nutrition = {
@@ -86,7 +87,7 @@ export function receiptsWithin(receipts: Receipt[], days: number, now = new Date
 }
 
 export function fmt(n: number, digits = 0) {
-  return n.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+  return n.toLocaleString(locale(), { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 }
 
 export type PantryItem = {
@@ -122,11 +123,10 @@ export function pantryFrom(receipts: Receipt[], windowDays: number, now = new Da
 }
 
 export function freshnessLabel(daysLeft: number) {
-  if (daysLeft < 0) return 'Check it';
-  if (daysLeft === 0) return 'Today';
-  if (daysLeft === 1) return '1 day';
-  if (daysLeft > 60) return 'Months';
-  return `${daysLeft} days`;
+  if (daysLeft < 0) return t('pantry.checkIt');
+  if (daysLeft === 0) return t('pantry.today');
+  if (daysLeft > 60) return t('pantry.months');
+  return t('common.days', { n: daysLeft });
 }
 
 export function freshnessTone(daysLeft: number): 'danger' | 'warn' | 'brand' {
@@ -137,10 +137,10 @@ export function freshnessTone(daysLeft: number): 'danger' | 'warn' | 'brand' {
 
 export function relativeDay(iso: string, now = new Date()) {
   const d = daysSince(iso, now);
-  if (d <= 0) return 'Today';
-  if (d === 1) return 'Yesterday';
-  if (d < 7) return new Date(iso).toLocaleDateString(undefined, { weekday: 'long' });
-  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  if (d <= 0) return t('day.today');
+  if (d === 1) return t('day.yesterday');
+  if (d < 7) return new Date(iso).toLocaleDateString(locale(), { weekday: 'long' });
+  return new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 }
 
 /** Turns whatever a receipt printed ("EUR", "€", "Fr.", "CHF", "SFr") into a currency code. */
@@ -155,7 +155,7 @@ export function normalizeCurrency(value: string | null | undefined, fallback: Cu
 
 export function money(value: number, currency: string | null | undefined, fallback: Currency = 'EUR') {
   const code = normalizeCurrency(currency, fallback);
-  const amount = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const amount = value.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   switch (code) {
     case 'CHF':
       return `CHF ${amount}`;

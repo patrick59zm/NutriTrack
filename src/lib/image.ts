@@ -1,4 +1,5 @@
 import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
+import { t } from './i18n';
 
 export type PreparedImage = { base64: string; mediaType: 'image/jpeg' };
 
@@ -50,6 +51,6 @@ async function render(
   if (resize) context.resize(resize);
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: true });
-  if (!result.base64) throw new Error('Could not read the image.');
+  if (!result.base64) throw new Error(t('error.imageUnreadable'));
   return { base64: result.base64, mediaType: 'image/jpeg' };
 }

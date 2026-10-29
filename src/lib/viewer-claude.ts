@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { t } from './i18n';
 
 import type { PreparedImage } from './image';
 
@@ -37,23 +38,21 @@ export async function viewerClaude(): Promise<ViewerClaude | null> {
 }
 
 /** Why the viewer's Claude could not be used, in words for the person using the demo. */
-export const NO_CLAUDE_HERE =
-  'This page can’t reach Claude here. Open the demo on claude.ai in a browser, or use the app with your API key.';
-export const NO_PHOTOS_HERE =
-  'Claude on this page can’t receive photos in this app or browser. Try the demo in a desktop browser, or use the app with your API key.';
+export const noClaudeHere = () => t('viewer.noClaude');
+export const noPhotosHere = () => t('viewer.noPhotos');
 
 export function unavailableReason(e: unknown) {
   switch ((e as SampleError)?.code) {
     case 'not_granted':
-      return 'Claude wasn’t allowed for this page, so nothing was sent. Reload the page and choose Allow when asked.';
+      return t('viewer.notGranted');
     case 'sampling_disabled':
-      return 'Claude isn’t available for your account on this page.';
+      return t('viewer.disabled');
     case 'session_expired':
-      return 'Your Claude session expired. Sign in again and reload the page.';
+      return t('viewer.expired');
     case 'images_unavailable':
-      return NO_PHOTOS_HERE;
+      return noPhotosHere();
     default:
-      return NO_CLAUDE_HERE;
+      return noClaudeHere();
   }
 }
 
@@ -64,16 +63,16 @@ export function isUnavailable(e: unknown) {
 export function viewerErrorMessage(e: unknown) {
   switch ((e as SampleError)?.code) {
     case 'rate_limited':
-      return 'Claude is busy or your usage limit is reached. Try again in a moment.';
+      return t('viewer.busy');
     case 'image_rejected':
-      return 'That image could not be used. Try a JPEG or PNG photo.';
+      return t('viewer.imageRejected');
     case 'refused':
-      return 'Claude declined this request. Try another photo.';
+      return t('viewer.refused');
     case 'invalid_json':
     case 'empty_completion':
-      return 'Claude’s answer could not be read. Please try again.';
+      return t('viewer.unreadable');
     default:
-      return 'Could not reach Claude. Please try again.';
+      return t('viewer.unreachable');
   }
 }
 

@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { t } from '@/lib/i18n';
 
 type State = { error: Error | null };
 
@@ -29,15 +30,15 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, State> 
         <Card style={styles.card}>
           <ThemedText style={styles.emoji}>🫠</ThemedText>
           <ThemedText variant="headline" style={styles.center}>
-            Something went wrong
+            {t('boundary.title')}
           </ThemedText>
           <ThemedText variant="body" color="textSecondary" style={styles.center}>
-            Your receipts are safe. Tap below to go back to the start.
+            {t('boundary.message')}
           </ThemedText>
           <ThemedText variant="caption" color="textTertiary" style={styles.center}>
             {this.state.error.message}
           </ThemedText>
-          <Button title="Back to start" icon="refresh" onPress={() => this.setState({ error: null })} />
+          <Button title={t('boundary.restart')} icon="refresh" onPress={() => this.setState({ error: null })} />
         </Card>
       </View>
     );

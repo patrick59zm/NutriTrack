@@ -20,6 +20,7 @@ import { useScanner } from '@/hooks/use-scanner';
 import { useTheme } from '@/hooks/use-theme';
 import { itemEmoji } from '@/lib/categories';
 import { tap } from '@/lib/haptics';
+import { locale, useT, type Key } from '@/lib/i18n';
 import { basketMetrics } from '@/lib/insights';
 import { fmt, money, priceCheck, recomputeReceipt } from '@/lib/nutrition';
 import { syncReminders } from '@/lib/reminders';
@@ -40,6 +41,7 @@ export default function ReceiptScreen() {
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [rescanOpen, setRescanOpen] = useState(false);
   const theme = useTheme();
+  const t = useT();
 
   const scanner = useScanner({
     replaceId: id,
@@ -65,7 +67,7 @@ export default function ReceiptScreen() {
   if (!receipt) {
     return (
       <Screen topInset={false}>
-        <ThemedText>Receipt not found.</ThemedText>
+        <ThemedText>{t('receipt.notFound')}</ThemedText>
       </Screen>
     );
   }
@@ -87,9 +89,9 @@ export default function ReceiptScreen() {
       run();
       return;
     }
-    Alert.alert('Delete receipt?', 'Its items will no longer be used for recipe ideas.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: run },
+    Alert.alert(t('receipt.deleteTitle'), t('receipt.deleteMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: run },
     ]);
   }
 
@@ -120,16 +122,16 @@ export default function ReceiptScreen() {
       {scanner.isWeb ? (
         <View style={styles.flex}>
           <ImageFileInput onPick={scanner.analyzePhoto}>
-            <Button title="Upload a new photo" icon="cloud-upload-outline" variant="secondary" onPress={() => {}} />
+            <Button title={t('receipt.uploadNew')} icon="cloud-upload-outline" variant="secondary" onPress={() => {}} />
           </ImageFileInput>
         </View>
       ) : (
         <>
           <View style={styles.flex}>
-            <Button title="Take photo" icon="camera" variant="secondary" onPress={() => scanner.pick('camera')} />
+            <Button title={t('common.takePhoto')} icon="camera" variant="secondary" onPress={() => scanner.pick('camera')} />
           </View>
           <View style={styles.flex}>
-            <Button title="Gallery" icon="images-outline" variant="secondary" onPress={() => scanner.pick('library')} />
+            <Button title={t('common.gallery')} icon="images-outline" variant="secondary" onPress={() => scanner.pick('library')} />
           </View>
         </>
       )}
@@ -156,7 +158,7 @@ export default function ReceiptScreen() {
           <Pressable
             onPress={() => setViewPhoto(receipt.photoUri!)}
             accessibilityRole="imagebutton"
-            accessibilityLabel="Show the receipt photo"
+            accessibilityLabel={t('receipt.showPhoto')}
             style={[styles.thumb, { borderColor: theme.border }]}>
             <Image source={{ uri: receipt.photoUri }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top" />
           </Pressable>
@@ -164,16 +166,16 @@ export default function ReceiptScreen() {
           <StoreAvatar store={receipt.store} size={60} />
         )}
         <View style={styles.flex}>
-          <ThemedText variant="title">{receipt.store ?? 'Receipt'}</ThemedText>
+          <ThemedText variant="title">{receipt.store ?? t('common.receipt')}</ThemedText>
           <ThemedText variant="caption" color="textSecondary">
-            {date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+            {date.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}
           </ThemedText>
         </View>
         {receipt.totalPrice != null && (
           <View style={styles.price}>
             <ThemedText variant="headline">{money(receipt.totalPrice, receipt.currency, settings.currency)}</ThemedText>
             <ThemedText variant="caption" color="textSecondary">
-              {receipt.items.length} lines
+              {t('receipt.lines', { n: receipt.items.length })}
             </ThemedText>
           </View>
         )}
@@ -181,7 +183,7 @@ export default function ReceiptScreen() {
 
       <Banner message={scanner.error} onDismiss={scanner.clearError} />
       {receipt.sampleReason && (
-        <Banner tone="warn" icon="flask-outline" message={`Sample receipt, not your photo. ${receipt.sampleReason}`} />
+        <Banner tone="warn" icon="flask-outline" message={t('receipt.sample', { reason: receipt.sampleReason })} />
       )}
       {receipt.warnings?.map((w) => (
         <Banner key={w} tone="warn" message={w} />
@@ -189,21 +191,21 @@ export default function ReceiptScreen() {
       {showFresh && !receipt.sampleReason && (
         <Banner
           tone="brand"
-          message={`Added ${food.length} food items to your kitchen. Tap an item to check or correct it.`}
+          message={t('receipt.added', { n: food.length })}
           onDismiss={() => setShowFresh(false)}
         />
       )}
 
       <Animated.View entering={FadeInDown.duration(400).delay(60)}>
         <Card>
-          <NutritionPanel nutrition={receipt.totals} caption="kcal total" />
+          <NutritionPanel nutrition={receipt.totals} caption={t('receipt.kcalTotal')} />
         </Card>
       </Animated.View>
 
       {food.length > 0 && (
         <Animated.View entering={FadeInDown.duration(400).delay(120)}>
           <Card>
-            <ThemedText variant="headline">Where the calories come from</ThemedText>
+            <ThemedText variant="headline">{t('receipt.whereFrom')}</ThemedText>
             <CategoryBreakdown items={receipt.items} />
           </Card>
         </Animated.View>
@@ -212,21 +214,21 @@ export default function ReceiptScreen() {
       {metrics.length > 0 && (
         <Animated.View entering={FadeInDown.duration(400).delay(150)}>
           <Card>
-            <ThemedText variant="headline">Basket check</ThemedText>
+            <ThemedText variant="headline">{t('receipt.basketCheck')}</ThemedText>
             <BasketCheck metrics={metrics} />
           </Card>
         </Animated.View>
       )}
 
       <SectionHeader
-        title={`Items · ${food.length}`}
-        action={<TextLink title="Add item" onPress={() => setEditing({ kind: 'add' })} />}
+        title={t('receipt.itemsCount', { n: food.length })}
+        action={<TextLink title={t('receipt.addItem')} onPress={() => setEditing({ kind: 'add' })} />}
       />
       <Animated.View entering={FadeInDown.duration(400).delay(180)}>
         <Card padded={false} style={styles.list}>
           {food.length === 0 && (
             <ThemedText variant="caption" color="textSecondary" style={styles.emptyList}>
-              No food items. Add one or scan the receipt again.
+              {t('receipt.noFood')}
             </ThemedText>
           )}
           {food.map((item, i) => (
@@ -245,7 +247,7 @@ export default function ReceiptScreen() {
 
       {other.length > 0 && (
         <>
-          <SectionHeader title="Not food" />
+          <SectionHeader title={t('receipt.notFood')} />
           <Card padded={false} style={styles.list}>
             {other.map((item, i) => (
               <View key={item.id}>
@@ -253,7 +255,7 @@ export default function ReceiptScreen() {
                 <Pressable
                   onPress={() => setEditing({ kind: 'edit', item })}
                   accessibilityRole="button"
-                  accessibilityLabel={`Edit ${item.name}`}
+                  accessibilityLabel={t('receipt.editItem', { name: item.name })}
                   style={({ pressed }) => [styles.itemHead, pressed && { backgroundColor: theme.surfaceMuted }]}>
                   <IconCircle emoji={itemEmoji(item)} size={36} />
                   <ThemedText variant="body" color="textSecondary" style={styles.flex}>
@@ -274,34 +276,38 @@ export default function ReceiptScreen() {
 
       {receipt.totalPrice != null && check.sum > 0 && (
         <ThemedText variant="caption" color={check.ok ? 'textTertiary' : 'warn'}>
-          Items add up to {money(check.sum, receipt.currency, settings.currency)}
-          {check.ok ? ', matching the printed total.' : ` against ${money(check.total ?? 0, receipt.currency, settings.currency)} printed.`}
+          {check.ok
+            ? t('receipt.sumMatch', { sum: money(check.sum, receipt.currency, settings.currency) })
+            : t('receipt.sumMismatch', {
+                sum: money(check.sum, receipt.currency, settings.currency),
+                total: money(check.total ?? 0, receipt.currency, settings.currency),
+              })}
         </ThemedText>
       )}
 
       <View style={styles.note}>
         <Ionicons name="information-circle-outline" size={16} color={theme.textTertiary} />
         <ThemedText variant="caption" color="textTertiary" style={styles.flex}>
-          {receipt.notes ? `${receipt.notes} ` : ''}Values are estimates for typical products, not read from the
-          packaging.
-          {cost ? ` This scan used ${fmt(cost.inputTokens + cost.outputTokens)} tokens (about $${cost.costUsd.toFixed(2)}).` : ''}
+          {receipt.notes ? `${receipt.notes} ` : ''}
+          {t('receipt.estimatesNote')}
+          {cost ? t('receipt.scanCost', { tokens: fmt(cost.inputTokens + cost.outputTokens), cost: cost.costUsd.toFixed(2) }) : ''}
         </ThemedText>
       </View>
 
-      <Button title="Cook with these" icon="restaurant" onPress={() => router.navigate('/recipes')} />
+      <Button title={t('receipt.cookWith')} icon="restaurant" onPress={() => router.navigate('/recipes')} />
       {rescanOpen ? (
         <Card>
-          <ThemedText variant="bodyStrong">Scan this receipt again</ThemedText>
+          <ThemedText variant="bodyStrong">{t('receipt.rescanTitle')}</ThemedText>
           <ThemedText variant="caption" color="textSecondary">
-            A new photo replaces the items below. Lay the receipt flat, fill the frame and avoid shadows.
+            {t('receipt.rescanNote')}
           </ThemedText>
           {rescanButtons}
-          <TextLink title="Cancel" onPress={() => setRescanOpen(false)} />
+          <TextLink title={t('common.cancel')} onPress={() => setRescanOpen(false)} />
         </Card>
       ) : (
-        <Button title="Scan again" icon="camera-reverse-outline" variant="secondary" onPress={() => setRescanOpen(true)} />
+        <Button title={t('receipt.scanAgain')} icon="camera-reverse-outline" variant="secondary" onPress={() => setRescanOpen(true)} />
       )}
-      <Button title="Delete receipt" icon="trash-outline" variant="danger" onPress={confirmDelete} />
+      <Button title={t('receipt.delete')} icon="trash-outline" variant="danger" onPress={confirmDelete} />
     </Screen>
   );
 }
@@ -318,6 +324,7 @@ function ItemRow({
   onToggleFood: () => void;
 }) {
   const theme = useTheme();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const n = item.nutrition_total;
 
@@ -328,7 +335,7 @@ function ItemRow({
         setOpen((o) => !o);
       }}
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${fmt(n.kcal)} kilocalories`}
+      accessibilityLabel={t('receipt.itemA11y', { name: item.name, kcal: fmt(n.kcal) })}
       accessibilityState={{ expanded: open }}
       style={({ pressed }) => ({ backgroundColor: pressed ? theme.surfaceMuted : 'transparent' })}>
       <View style={styles.itemHead}>
@@ -340,9 +347,9 @@ function ItemRow({
           </ThemedText>
           <ThemedText variant="caption" color="textSecondary">
             ~{fmt(item.total_weight_g)} g{item.price != null ? ` · ${money(item.price, currency)}` : ''}
-            {item.confidence === 'low' ? ' · rough estimate' : ''}
-            {item.edited ? ' · edited' : ''}
-            {item.consumed ? ' · used up' : ''}
+            {item.confidence === 'low' ? t('receipt.roughEstimate') : ''}
+            {item.edited ? t('receipt.edited') : ''}
+            {item.consumed ? t('receipt.usedUp') : ''}
           </ThemedText>
         </View>
         <View style={styles.kcal}>
@@ -368,8 +375,8 @@ function ItemRow({
           </View>
           <NutrientTable total={n} per100={item.nutrition_per_100g} />
           <View style={styles.actions}>
-            <Button title="Edit" icon="create-outline" variant="secondary" compact onPress={onEdit} />
-            <Button title="Not food" icon="bag-outline" variant="secondary" compact onPress={onToggleFood} />
+            <Button title={t('common.edit')} icon="create-outline" variant="secondary" compact onPress={onEdit} />
+            <Button title={t('receipt.notFoodButton')} icon="bag-outline" variant="secondary" compact onPress={onToggleFood} />
           </View>
         </Animated.View>
       )}
@@ -377,35 +384,36 @@ function ItemRow({
   );
 }
 
-const ROWS: { key: keyof Nutrition; label: string; unit: string; color?: string; digits?: number }[] = [
-  { key: 'kcal', label: 'Energy', unit: 'kcal' },
-  { key: 'protein_g', label: 'Protein', unit: 'g', color: MacroColors.protein },
-  { key: 'carbs_g', label: 'Carbs', unit: 'g', color: MacroColors.carbs },
-  { key: 'sugar_g', label: '  of which sugar', unit: 'g' },
-  { key: 'fat_g', label: 'Fat', unit: 'g', color: MacroColors.fat },
-  { key: 'saturated_fat_g', label: '  of which saturated', unit: 'g' },
-  { key: 'fiber_g', label: 'Fiber', unit: 'g' },
-  { key: 'salt_g', label: 'Salt', unit: 'g', digits: 1 },
+const ROWS: { key: keyof Nutrition; label: Key; sub?: boolean; unit: string; color?: string; digits?: number }[] = [
+  { key: 'kcal', label: 'common.energy', unit: 'kcal' },
+  { key: 'protein_g', label: 'common.protein', unit: 'g', color: MacroColors.protein },
+  { key: 'carbs_g', label: 'common.carbs', unit: 'g', color: MacroColors.carbs },
+  { key: 'sugar_g', label: 'receipt.ofWhichSugar', sub: true, unit: 'g' },
+  { key: 'fat_g', label: 'common.fat', unit: 'g', color: MacroColors.fat },
+  { key: 'saturated_fat_g', label: 'receipt.ofWhichSaturated', sub: true, unit: 'g' },
+  { key: 'fiber_g', label: 'common.fiber', unit: 'g' },
+  { key: 'salt_g', label: 'common.salt', unit: 'g', digits: 1 },
 ];
 
 function NutrientTable({ total, per100 }: { total: Nutrition; per100: Nutrition }) {
+  const t = useT();
   return (
     <View style={styles.table}>
       <View style={styles.tableRow}>
         <ThemedText variant="caption" color="textTertiary" style={styles.flex} />
         <ThemedText variant="captionStrong" color="textTertiary" style={styles.cell}>
-          per 100 g
+          {t('receipt.per100')}
         </ThemedText>
         <ThemedText variant="captionStrong" color="textTertiary" style={styles.cell}>
-          bought
+          {t('receipt.bought')}
         </ThemedText>
       </View>
       {ROWS.map((r) => (
         <View key={r.key} style={styles.tableRow}>
           <View style={[styles.flex, styles.tableLabel]}>
             {r.color && <View style={[styles.dot, { backgroundColor: r.color }]} />}
-            <ThemedText variant="caption" color={r.label.startsWith(' ') ? 'textSecondary' : 'text'}>
-              {r.label.trim()}
+            <ThemedText variant="caption" color={r.sub ? 'textSecondary' : 'text'}>
+              {t(r.label)}
             </ThemedText>
           </View>
           <ThemedText variant="caption" color="textSecondary" style={styles.cell}>

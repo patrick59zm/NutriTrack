@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { t } from './i18n';
 import { ensureItemIds } from './nutrition';
 import {
   loadCooked,
@@ -77,7 +78,7 @@ export async function exportBackup(): Promise<'shared' | 'downloaded'> {
   if (file.exists) file.delete();
   file.create();
   file.write(json);
-  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Save your NutriTrack backup' });
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: t('backup.shareTitle') });
   return 'shared';
 }
 
@@ -95,9 +96,9 @@ export async function importBackup(text: string): Promise<{ receipts: number; fa
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error('This is not a NutriTrack backup file.');
+    throw new Error(t('backup.invalid'));
   }
-  if (!isBackup(parsed)) throw new Error('This is not a NutriTrack backup file.');
+  if (!isBackup(parsed)) throw new Error(t('backup.invalid'));
 
   const [receipts, favorites, shopping, cooked] = await Promise.all([
     loadReceipts(),

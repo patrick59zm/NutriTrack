@@ -14,6 +14,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { success, tap } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import { EMPTY_NUTRITION, fmt, pantryFrom, type PantryItem } from '@/lib/nutrition';
 import { syncReminders } from '@/lib/reminders';
 import { recipeToText, shareText } from '@/lib/share';
@@ -51,6 +52,7 @@ export default function RecipeScreen() {
   const { index, source } = useLocalSearchParams<{ index: string; source?: string }>();
   const i = Number(index);
   const theme = useTheme();
+  const t = useT();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { data, setData, loaded } = useFocusData(loadRecipeScreen, {
     batch: null,
@@ -77,14 +79,14 @@ export default function RecipeScreen() {
         ? [{ id: 'pending', savedAt: new Date().toISOString(), recipe }, ...d.favorites]
         : d.favorites.filter((f) => recipeKey(f.recipe) !== recipeKey(recipe)),
     }));
-    setToast(nowSaved ? 'Saved to your recipes.' : 'Removed from your saved recipes.');
-  }, [recipe, setData]);
+    setToast(nowSaved ? t('recipe.saved') : t('recipe.unsaved'));
+  }, [recipe, setData, t]);
 
   if (!loaded) return null;
   if (!recipe) {
     return (
       <Screen topInset={false}>
-        <ThemedText>Recipe not found.</ThemedText>
+        <ThemedText>{t('recipe.notFound')}</ThemedText>
       </Screen>
     );
   }
@@ -107,13 +109,13 @@ export default function RecipeScreen() {
 
   async function share() {
     const result = await shareText(recipeToText(recipe!), recipe!.title);
-    if (result === 'copied') setToast('Recipe copied to the clipboard.');
+    if (result === 'copied') setToast(t('recipe.copied'));
   }
 
   async function addMissing() {
     const added = await addToShopping(extras, recipe!.title);
     success();
-    setToast(added ? `${added} item${added === 1 ? '' : 's'} added to your shopping list.` : 'Everything is already on your list.');
+    setToast(added ? t('recipe.addedToList', { n: added }) : t('recipe.allOnList'));
   }
 
   async function confirmCooked() {
@@ -124,11 +126,7 @@ export default function RecipeScreen() {
     await recordCooked(recipe!);
     setCooking(null);
     success();
-    setToast(
-      refs.length
-        ? `Enjoy! ${refs.length} item${refs.length === 1 ? '' : 's'} marked as used up.`
-        : 'Enjoy! Logged as cooked.',
-    );
+    setToast(refs.length ? t('recipe.enjoyUsed', { n: refs.length }) : t('recipe.enjoyLogged'));
   }
 
   return (
@@ -138,14 +136,14 @@ export default function RecipeScreen() {
           title: '',
           headerRight: () => (
             <View style={styles.headerActions}>
-              <Pressable onPress={share} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share recipe">
+              <Pressable onPress={share} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('recipe.shareA11y')}>
                 <Ionicons name="share-outline" size={24} color={theme.brand} />
               </Pressable>
               <Pressable
                 onPress={onToggleFavorite}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={saved ? 'Remove from saved recipes' : 'Save recipe'}>
+                accessibilityLabel={saved ? t('recipe.unsaveA11y') : t('recipe.saveA11y')}>
                 <Ionicons name={saved ? 'heart' : 'heart-outline'} size={24} color={saved ? theme.danger : theme.brand} />
               </Pressable>
             </View>
@@ -154,11 +152,11 @@ export default function RecipeScreen() {
       />
 
       {cooking && (
-        <Sheet visible title="I cooked this" onClose={() => setCooking(null)}>
+        <Sheet visible title={t('recipe.cookedTitle')} onClose={() => setCooking(null)}>
           {usedPantry.length > 0 ? (
             <>
               <ThemedText variant="body" color="textSecondary">
-                Which of these are used up now? They leave your kitchen and future recipe ideas.
+                {t('recipe.whichUsedUp')}
               </ThemedText>
               <Card padded={false}>
                 {usedPantry.map((p, idx) => {
@@ -187,10 +185,10 @@ export default function RecipeScreen() {
             </>
           ) : (
             <ThemedText variant="body" color="textSecondary">
-              None of the ingredients are in your kitchen right now, so nothing needs to be marked as used up.
+              {t('recipe.noneInKitchen')}
             </ThemedText>
           )}
-          <Button title="Done cooking" icon="checkmark" onPress={confirmCooked} />
+          <Button title={t('recipe.doneCooking')} icon="checkmark" onPress={confirmCooked} />
         </Sheet>
       )}
 
@@ -206,8 +204,8 @@ export default function RecipeScreen() {
           {recipe.description}
         </ThemedText>
         <View style={styles.metaRow}>
-          <Meta icon="time-outline" label={`${recipe.time_minutes} min`} />
-          <Meta icon="people-outline" label={`${recipe.servings} servings`} />
+          <Meta icon="time-outline" label={t('common.min', { n: recipe.time_minutes })} />
+          <Meta icon="people-outline" label={t('common.servings', { n: recipe.servings })} />
           <Meta icon="bar-chart-outline" label={recipe.difficulty} />
         </View>
       </View>
@@ -223,13 +221,13 @@ export default function RecipeScreen() {
 
       <Card>
         <ThemedText variant="overline" color="textTertiary">
-          Per serving
+          {t('recipe.perServing')}
         </ThemedText>
         <View style={styles.tiles}>
           <StatTile label="kcal" value={fmt(n.kcal)} />
-          <StatTile label="Protein" value={fmt(n.protein_g)} unit="g" />
-          <StatTile label="Carbs" value={fmt(n.carbs_g)} unit="g" />
-          <StatTile label="Fat" value={fmt(n.fat_g)} unit="g" />
+          <StatTile label={t('common.protein')} value={fmt(n.protein_g)} unit="g" />
+          <StatTile label={t('common.carbsShort')} value={fmt(n.carbs_g)} unit="g" />
+          <StatTile label={t('common.fat')} value={fmt(n.fat_g)} unit="g" />
         </View>
         <MacroBar nutrition={{ ...EMPTY_NUTRITION, ...n }} height={8} />
         <View style={styles.legend}>
@@ -237,7 +235,7 @@ export default function RecipeScreen() {
             <View key={k} style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: MacroColors[k] }]} />
               <ThemedText variant="caption" color="textSecondary">
-                {k[0].toUpperCase() + k.slice(1)}
+                {t(`common.${k}`)}
               </ThemedText>
             </View>
           ))}
@@ -245,8 +243,16 @@ export default function RecipeScreen() {
       </Card>
 
       <SectionHeader
-        title="Ingredients"
-        action={extras.length > 0 ? <Pressable onPress={addMissing} hitSlop={8} accessibilityRole="button"><ThemedText variant="captionStrong" color="brand">Add missing to list</ThemedText></Pressable> : undefined}
+        title={t('recipe.ingredients')}
+        action={
+          extras.length > 0 ? (
+            <Pressable onPress={addMissing} hitSlop={8} accessibilityRole="button">
+              <ThemedText variant="captionStrong" color="brand">
+                {t('recipe.addMissing')}
+              </ThemedText>
+            </Pressable>
+          ) : undefined
+        }
       />
       <Card padded={false}>
         {recipe.ingredients.map((ing, idx) => {
@@ -279,14 +285,14 @@ export default function RecipeScreen() {
                 {have ? (
                   <View style={[styles.tag, { backgroundColor: theme.brandSoft }]}>
                     <ThemedText variant="captionStrong" color="brandStrong" style={styles.tagText}>
-                      In kitchen
+                      {t('recipe.inKitchen')}
                     </ThemedText>
                   </View>
                 ) : (
                   <View style={[styles.tag, { backgroundColor: theme.warnSoft }]}>
                     <Ionicons name="cart-outline" size={12} color={theme.warn} />
                     <ThemedText variant="captionStrong" color="warn" style={styles.tagText}>
-                      To buy
+                      {t('recipe.toBuy')}
                     </ThemedText>
                   </View>
                 )}
@@ -296,7 +302,7 @@ export default function RecipeScreen() {
         })}
       </Card>
 
-      <SectionHeader title="Steps" />
+      <SectionHeader title={t('recipe.steps')} />
       <View style={styles.steps}>
         {recipe.steps.map((step, idx) => {
           const isDone = done.has(idx);
@@ -306,7 +312,7 @@ export default function RecipeScreen() {
               onPress={() => setDone((s) => toggle(s, idx))}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: isDone }}
-              accessibilityLabel={`Step ${idx + 1}`}
+              accessibilityLabel={t('recipe.step', { n: idx + 1 })}
               style={styles.step}>
               <View
                 style={[
@@ -327,23 +333,23 @@ export default function RecipeScreen() {
         })}
       </View>
       <ThemedText variant="caption" color="textTertiary" style={styles.center}>
-        Tap ingredients and steps to tick them off while you cook.
+        {t('recipe.tickHint')}
       </ThemedText>
 
-      <Button title="I cooked this" icon="restaurant" onPress={() => setCooking({ chosen: new Set(usedPantry.map((p) => p.itemId)) })} />
+      <Button title={t('recipe.cookedTitle')} icon="restaurant" onPress={() => setCooking({ chosen: new Set(usedPantry.map((p) => p.itemId)) })} />
       <View style={styles.row}>
         <View style={styles.flex}>
-          <Button title={saved ? 'Saved' : 'Save recipe'} icon={saved ? 'heart' : 'heart-outline'} variant="secondary" onPress={onToggleFavorite} />
+          <Button title={saved ? t('recipe.savedButton') : t('recipe.save')} icon={saved ? 'heart' : 'heart-outline'} variant="secondary" onPress={onToggleFavorite} />
         </View>
         <View style={styles.flex}>
-          <Button title="Share" icon="share-outline" variant="secondary" onPress={share} />
+          <Button title={t('common.share')} icon="share-outline" variant="secondary" onPress={share} />
         </View>
       </View>
       {settings.householdSize !== recipe.servings && (
         <ThemedText variant="caption" color="textTertiary" style={styles.center}>
-          Written for {recipe.servings} servings; your household is set to {settings.householdSize}.{' '}
+          {t('recipe.writtenFor', { n: recipe.servings, household: settings.householdSize })}{' '}
           <ThemedText variant="caption" color="brand" onPress={() => router.navigate('/settings')}>
-            Change
+            {t('common.change')}
           </ThemedText>
         </ThemedText>
       )}

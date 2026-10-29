@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useT } from '@/lib/i18n';
 
 /** Shows the receipt photo full screen; tall receipts scroll, and iOS can pinch to zoom. */
 export function PhotoViewer({ uri, onClose }: { uri: string | null; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const t = useT();
   return (
     <Modal visible={!!uri} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.backdrop}>
@@ -19,11 +21,11 @@ export function PhotoViewer({ uri, onClose }: { uri: string | null; onClose: () 
         <Pressable
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close photo"
+          accessibilityLabel={t('photo.close')}
           style={[styles.close, { top: insets.top + Spacing.three }]}>
           <Ionicons name="close" size={22} color="#FFFFFF" />
           <ThemedText variant="captionStrong" style={styles.closeText}>
-            Close
+            {t('common.close')}
           </ThemedText>
         </Pressable>
       </View>

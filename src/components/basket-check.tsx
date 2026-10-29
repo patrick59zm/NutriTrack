@@ -6,12 +6,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { tap } from '@/lib/haptics';
+import { useT, type Key } from '@/lib/i18n';
 import { metricSummary, type BasketMetric, type MetricStatus } from '@/lib/insights';
 
-const STATUS: Record<MetricStatus, { icon: 'checkmark-circle' | 'alert-circle' | 'warning'; label: string }> = {
-  good: { icon: 'checkmark-circle', label: 'Good' },
-  watch: { icon: 'alert-circle', label: 'Close' },
-  high: { icon: 'warning', label: 'Look at this' },
+const STATUS: Record<MetricStatus, { icon: 'checkmark-circle' | 'alert-circle' | 'warning'; label: Key }> = {
+  good: { icon: 'checkmark-circle', label: 'basket.good' },
+  watch: { icon: 'alert-circle', label: 'basket.watch' },
+  high: { icon: 'warning', label: 'basket.high' },
 };
 
 /**
@@ -20,6 +21,7 @@ const STATUS: Record<MetricStatus, { icon: 'checkmark-circle' | 'alert-circle' |
  */
 export function BasketCheck({ metrics }: { metrics: BasketMetric[] }) {
   const theme = useTheme();
+  const t = useT();
   const [open, setOpen] = useState<string | null>(null);
   const colors: Record<MetricStatus, string> = { good: theme.brand, watch: theme.warn, high: theme.danger };
 
@@ -39,7 +41,7 @@ export function BasketCheck({ metrics }: { metrics: BasketMetric[] }) {
               setOpen(isOpen ? null : m.key);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`${m.label}: ${m.value}, guideline ${m.target}, ${STATUS[m.status].label}`}
+            accessibilityLabel={t('basket.a11y', { label: m.label, value: m.value, target: m.target, status: t(STATUS[m.status].label) })}
             accessibilityState={{ expanded: isOpen }}
             style={styles.row}>
             <View style={styles.head}>
@@ -49,7 +51,7 @@ export function BasketCheck({ metrics }: { metrics: BasketMetric[] }) {
               <View style={styles.status}>
                 <Ionicons name={STATUS[m.status].icon} size={14} color={color} />
                 <ThemedText variant="captionStrong" style={{ color }}>
-                  {STATUS[m.status].label}
+                  {t(STATUS[m.status].label)}
                 </ThemedText>
               </View>
             </View>
@@ -62,7 +64,7 @@ export function BasketCheck({ metrics }: { metrics: BasketMetric[] }) {
                 {m.value}
               </ThemedText>
               <ThemedText variant="caption" color="textTertiary">
-                guideline {m.target}
+                {t('basket.guideline', { target: m.target })}
               </ThemedText>
             </View>
             {isOpen && (
@@ -74,8 +76,7 @@ export function BasketCheck({ metrics }: { metrics: BasketMetric[] }) {
         );
       })}
       <ThemedText variant="caption" color="textTertiary">
-        Guidelines from WHO population targets, applied to what was bought, not what was eaten. The black
-        tick marks the guideline.
+        {t('basket.note')}
       </ThemedText>
     </View>
   );

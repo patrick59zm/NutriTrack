@@ -7,10 +7,12 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { itemEmoji } from '@/lib/categories';
 import { tap } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import { freshnessLabel, freshnessTone, type PantryItem } from '@/lib/nutrition';
 
 export function FreshnessPill({ daysLeft }: { daysLeft: number }) {
   const theme = useTheme();
+  useT();
   const tone = freshnessTone(daysLeft);
   const colors = {
     danger: [theme.dangerSoft, theme.danger],
@@ -58,6 +60,7 @@ export function PantryStrip({ items }: { items: PantryItem[] }) {
 /** Compact list row, used for the full pantry. `onConsume` adds a "used up" button. */
 export function PantryRow({ item, onConsume }: { item: PantryItem; onConsume?: () => void }) {
   const theme = useTheme();
+  const t = useT();
   return (
     <View style={styles.row}>
       <IconCircle emoji={itemEmoji(item)} size={36} />
@@ -66,7 +69,7 @@ export function PantryRow({ item, onConsume }: { item: PantryItem; onConsume?: (
           {item.name}
         </ThemedText>
         <ThemedText variant="caption" color="textSecondary">
-          {item.boughtDaysAgo === 0 ? 'Bought today' : `Bought ${item.boughtDaysAgo}d ago`}
+          {item.boughtDaysAgo === 0 ? t('pantry.boughtToday') : t('pantry.boughtAgo', { n: item.boughtDaysAgo })}
           {item.grams > 0 ? ` · ${Math.round(item.grams)} g` : ''}
         </ThemedText>
       </View>
@@ -79,7 +82,7 @@ export function PantryRow({ item, onConsume }: { item: PantryItem; onConsume?: (
           }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={`${item.name} used up`}
+          accessibilityLabel={t('pantry.usedUpA11y', { name: item.name })}
           style={({ pressed }) => [styles.consume, { backgroundColor: theme.surfaceMuted, opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="checkmark-done-outline" size={18} color={theme.textSecondary} />
         </Pressable>

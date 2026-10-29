@@ -11,6 +11,7 @@ import { Button, Card, EmptyState, Screen, StatTile } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
+import { t, useT } from '@/lib/i18n';
 import { searchReceipts, weeklySeries } from '@/lib/insights';
 import { daysSince, fmt, money, receiptsWithin, sum } from '@/lib/nutrition';
 import { loadDemoData, loadReceipts, loadSettings } from '@/lib/storage';
@@ -18,9 +19,9 @@ import { DEFAULT_SETTINGS, type Receipt } from '@/lib/types';
 
 function groupByAge(receipts: Receipt[]) {
   const groups: { title: string; items: Receipt[] }[] = [
-    { title: 'This week', items: [] },
-    { title: 'Last week', items: [] },
-    { title: 'Earlier', items: [] },
+    { title: t('history.thisWeek'), items: [] },
+    { title: t('history.lastWeek'), items: [] },
+    { title: t('history.earlier'), items: [] },
   ];
   for (const r of receipts) {
     const d = daysSince(r.purchasedAt);
@@ -36,6 +37,7 @@ const loadHistory = async () => {
 
 export default function HistoryScreen() {
   const theme = useTheme();
+  const t = useT();
   const { data, loaded, reload } = useFocusData(loadHistory, { receipts: [], settings: DEFAULT_SETTINGS });
   const { receipts, settings } = data;
   const [query, setQuery] = useState('');
@@ -49,20 +51,16 @@ export default function HistoryScreen() {
 
   return (
     <Screen
-      title="Receipts"
-      subtitle={
-        receipts.length
-          ? `${receipts.length} shopping trip${receipts.length === 1 ? '' : 's'} saved on this device`
-          : undefined
-      }>
+      title={t('history.title')}
+      subtitle={receipts.length ? t('history.subtitle', { n: receipts.length }) : undefined}>
       {loaded && receipts.length === 0 && (
         <EmptyState
           emoji="🧾"
-          title="No receipts yet"
-          message="Every receipt you scan lands here, with its full nutrition breakdown.">
-          <Button title="Scan a receipt" icon="scan" onPress={() => router.navigate('/')} />
+          title={t('history.emptyTitle')}
+          message={t('history.emptyMessage')}>
+          <Button title={t('common.scanReceipt')} icon="scan" onPress={() => router.navigate('/')} />
           <Button
-            title="Load sample data"
+            title={t('common.loadSample')}
             icon="sparkles"
             variant="secondary"
             onPress={async () => {
@@ -77,12 +75,12 @@ export default function HistoryScreen() {
         <Animated.View entering={FadeInDown.duration(400)}>
           <Card>
             <ThemedText variant="overline" color="textTertiary">
-              Last 30 days
+              {t('history.last30')}
             </ThemedText>
             <View style={styles.stats}>
-              <StatTile label="Energy" value={fmt(monthTotals.kcal)} unit="kcal" icon="flame" />
-              <StatTile label="Per person" value={fmt(perPersonDay)} unit="kcal/day" icon="person-outline" />
-              <StatTile label="Spent" value={money(monthSpent, settings.currency)} icon="wallet-outline" />
+              <StatTile label={t('common.energy')} value={fmt(monthTotals.kcal)} unit="kcal" icon="flame" />
+              <StatTile label={t('history.perPerson')} value={fmt(perPersonDay)} unit={t('history.perDayUnit')} icon="person-outline" />
+              <StatTile label={t('home.spent')} value={money(monthSpent, settings.currency)} icon="wallet-outline" />
             </View>
           </Card>
         </Animated.View>
@@ -91,16 +89,16 @@ export default function HistoryScreen() {
       {receipts.length > 0 && (
         <Animated.View entering={FadeInDown.duration(400).delay(60)}>
           <Card>
-            <ThemedText variant="headline">Last 8 weeks</ThemedText>
-            <TrendsChart points={weeks} value={(p) => p.kcal} format={(n) => `${fmt(n)} kcal`} title="Calories bought per week" />
+            <ThemedText variant="headline">{t('history.last8weeks')}</ThemedText>
+            <TrendsChart points={weeks} value={(p) => p.kcal} format={(n) => `${fmt(n)} kcal`} title={t('history.kcalPerWeek')} />
             <TrendsChart
               points={weeks}
               value={(p) => p.spent}
               format={(n) => money(n, settings.currency)}
-              title="Spent per week"
+              title={t('history.spentPerWeek')}
             />
             <ThemedText variant="caption" color="textTertiary">
-              Tap a week for its value. Weeks start on Monday.
+              {t('history.chartHint')}
             </ThemedText>
           </Card>
         </Animated.View>
@@ -112,14 +110,14 @@ export default function HistoryScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search stores and items"
+            placeholder={t('history.searchPlaceholder')}
             placeholderTextColor={theme.textTertiary}
-            accessibilityLabel="Search receipts"
+            accessibilityLabel={t('history.search')}
             autoCorrect={false}
             style={[styles.searchInput, { color: theme.text }]}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
+            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('history.clearSearch')}>
               <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
             </Pressable>
           )}
@@ -128,7 +126,7 @@ export default function HistoryScreen() {
 
       {query.trim() && shown.length === 0 && (
         <ThemedText variant="body" color="textSecondary">
-          Nothing matches “{query.trim()}”.
+          {t('history.noMatch', { q: query.trim() })}
         </ThemedText>
       )}
 

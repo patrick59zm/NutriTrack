@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { DEMO_MODE } from '@/lib/config';
 import { success, tap } from '@/lib/haptics';
 import { exportBackup, importBackup, pickBackupFile } from '@/lib/backup';
+import { everyLanguage, locale, useT, type Key } from '@/lib/i18n';
 import { fmt } from '@/lib/nutrition';
 import { reminderPlan, requestReminderPermission, syncReminders } from '@/lib/reminders';
 import {
@@ -26,14 +27,26 @@ import {
 } from '@/lib/storage';
 import { DEFAULT_SETTINGS, type Currency, type Settings } from '@/lib/types';
 
-const DIET_SUGGESTIONS = ['Vegetarian', 'Vegan', 'Pescatarian', 'High protein', 'Low carb', 'Gluten-free', 'No nuts', 'Lactose-free'];
-const COOK_TIMES: (number | null)[] = [null, 15, 30, 45, 60];
-const CURRENCIES: [Currency, string][] = [
-  ['EUR', '€ Euro'],
-  ['CHF', 'CHF'],
-  ['USD', '$ Dollar'],
-  ['GBP', '£ Pound'],
+const DIET_SUGGESTIONS: Key[] = [
+  'diet.vegetarian',
+  'diet.vegan',
+  'diet.pescatarian',
+  'diet.highProtein',
+  'diet.lowCarb',
+  'diet.glutenFree',
+  'diet.noNuts',
+  'diet.lactoseFree',
 ];
+const COOK_TIMES: (number | null)[] = [null, 15, 30, 45, 60];
+const CURRENCIES: [Currency, Key][] = [
+  ['EUR', 'settings.currencyEur'],
+  ['CHF', 'settings.currencyChf'],
+  ['USD', 'settings.currencyUsd'],
+  ['GBP', 'settings.currencyGbp'],
+];
+
+/** A diet chip's word in either language, so the chips stay in step with the stored text after a language switch. */
+const dietWords = (tag: Key) => new Set(everyLanguage(tag).map((w) => w.toLowerCase()));
 
 const loadSettingsScreen = async () => {
   const [apiKey, settings, usage, receipts] = await Promise.all([getApiKey(), loadSettings(), loadUsage(), loadReceipts()]);
@@ -42,6 +55,7 @@ const loadSettingsScreen = async () => {
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const t = useT();
   const { data, setData, reload } = useFocusData(loadSettingsScreen, {
     apiKey: null as string | null,
     settings: DEFAULT_SETTINGS,
@@ -65,7 +79,7 @@ export default function SettingsScreen() {
     setKeyInput('');
     await reload();
     success();
-    setToast(value ? 'API key saved on this device.' : 'API key removed.');
+    setToast(value ? t('settings.keySaved') : t('settings.keyRemoved'));
   }
 
   async function update(patch: Partial<Settings>) {
@@ -74,13 +88,14 @@ export default function SettingsScreen() {
     await saveSettings(next);
   }
 
-  function toggleDiet(tag: string) {
+  function toggleDiet(tag: Key) {
+    const words = dietWords(tag);
     const parts = diet
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean);
-    const has = parts.some((p) => p.toLowerCase() === tag.toLowerCase());
-    const next = (has ? parts.filter((p) => p.toLowerCase() !== tag.toLowerCase()) : [...parts, tag]).join(', ');
+    const has = parts.some((p) => words.has(p.toLowerCase()));
+    const next = (has ? parts.filter((p) => !words.has(p.toLowerCase())) : [...parts, t(tag)]).join(', ');
     setDiet(null);
     update({ diet: next });
   }
@@ -89,25 +104,21 @@ export default function SettingsScreen() {
     if (on) {
       const granted = await requestReminderPermission();
       if (!granted) {
-        setToast(
-          Platform.OS === 'web'
-            ? 'Reminders work in the Android app, not in the browser.'
-            : 'Notifications are off for NutriTrack. Allow them in your phone settings and try again.',
-        );
+        setToast(Platform.OS === 'web' ? t('settings.remindersWeb') : t('settings.remindersDenied'));
         return;
       }
     }
     await update({ remindersEnabled: on });
     await syncReminders();
-    setToast(on ? 'You will get a reminder at 17:00 on days when something should be used.' : 'Reminders are off.');
+    setToast(on ? t('settings.remindersOn') : t('settings.remindersOff'));
   }
 
   async function doExport() {
     try {
       const how = await exportBackup();
-      setToast(how === 'downloaded' ? 'Backup downloaded.' : 'Backup ready to save or send.');
+      setToast(how === 'downloaded' ? t('settings.backupDownloaded') : t('settings.backupReady'));
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Could not export.');
+      setToast(e instanceof Error ? e.message : t('settings.exportFailed'));
     }
   }
 
@@ -119,49 +130,53 @@ export default function SettingsScreen() {
       await syncReminders();
       success();
       setToast(
-        `Imported ${result.receipts} receipt${result.receipts === 1 ? '' : 's'}, ${result.favorites} saved recipe${result.favorites === 1 ? '' : 's'} and ${result.shopping} shopping line${result.shopping === 1 ? '' : 's'}.`,
+        t('settings.imported', {
+          receipts: t('common.receipts', { n: result.receipts }),
+          favorites: t('settings.importedFavorites', { n: result.favorites }),
+          shopping: t('settings.importedShopping', { n: result.shopping }),
+        }),
       );
       reload();
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Could not import.');
+      setToast(e instanceof Error ? e.message : t('settings.importFailed'));
     }
   }
 
   function confirmClear() {
     const run = async () => {
       await clearAllData();
-      setToast('All receipts and recipes deleted.');
+      setToast(t('settings.allDeleted'));
     };
     if (Platform.OS === 'web') {
       run();
       return;
     }
-    Alert.alert('Delete all data?', 'This removes every scanned receipt and saved recipe.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: run },
+    Alert.alert(t('settings.deleteAllTitle'), t('settings.deleteAllMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: run },
     ]);
   }
 
   const activeDiet = diet.toLowerCase();
 
   return (
-    <Screen title="Settings">
+    <Screen title={t('settings.title')}>
       <Banner tone="brand" message={toast} onDismiss={() => setToast(null)} />
 
-      <Group title="Claude">
+      <Group title={t('settings.claude')}>
         <Card>
           <View style={styles.row}>
             <IconCircle icon="sparkles" background={theme.brandSoft} color={theme.brandStrong} size={40} />
             <View style={styles.flex}>
-              <ThemedText variant="bodyStrong">Anthropic API key</ThemedText>
+              <ThemedText variant="bodyStrong">{t('settings.apiKey')}</ThemedText>
               <View style={styles.status}>
                 <View style={[styles.statusDot, { backgroundColor: apiKey ? theme.brand : theme.textTertiary }]} />
                 <ThemedText variant="caption" color="textSecondary">
                   {DEMO_MODE
-                    ? 'Demo version: no key needed'
+                    ? t('settings.demoNoKey')
                     : apiKey
-                      ? `Connected · ••••${apiKey.slice(-4)}`
-                      : 'Not connected'}
+                      ? t('settings.connected', { last4: apiKey.slice(-4) })
+                      : t('settings.notConnected')}
                 </ThemedText>
               </View>
             </View>
@@ -169,7 +184,7 @@ export default function SettingsScreen() {
           <TextInput
             value={keyInput}
             onChangeText={setKeyInput}
-            placeholder={apiKey ? 'Paste a new key to replace it' : 'sk-ant-…'}
+            placeholder={apiKey ? t('settings.pasteNewKey') : 'sk-ant-…'}
             placeholderTextColor={theme.textTertiary}
             autoCapitalize="none"
             autoCorrect={false}
@@ -179,7 +194,7 @@ export default function SettingsScreen() {
           <View style={styles.buttonRow}>
             <View style={styles.flex}>
               <Button
-                title="Save key"
+                title={t('settings.saveKey')}
                 compact
                 disabled={!keyInput.trim()}
                 onPress={() => saveKey(keyInput.trim())}
@@ -187,17 +202,17 @@ export default function SettingsScreen() {
             </View>
             {apiKey && (
               <View style={styles.flex}>
-                <Button title="Remove" compact variant="secondary" onPress={() => saveKey('')} />
+                <Button title={t('common.remove')} compact variant="secondary" onPress={() => saveKey('')} />
               </View>
             )}
           </View>
           <Pressable onPress={() => Linking.openURL('https://console.anthropic.com/settings/keys')}>
             <ThemedText variant="caption" color="brand">
-              Get a key at console.anthropic.com →
+              {t('settings.getKey')}
             </ThemedText>
           </Pressable>
           <ThemedText variant="caption" color="textTertiary">
-            The key is stored in this device&apos;s secure storage and only sent to Anthropic.
+            {t('settings.keyNote')}
           </ThemedText>
         </Card>
         {usage && usage.scans + usage.recipeRequests + usage.estimates > 0 && (
@@ -205,19 +220,18 @@ export default function SettingsScreen() {
             <View style={styles.row}>
               <IconCircle icon="wallet-outline" size={40} />
               <View style={styles.flex}>
-                <ThemedText variant="bodyStrong">Claude usage on this device</ThemedText>
+                <ThemedText variant="bodyStrong">{t('settings.usageTitle')}</ThemedText>
                 <ThemedText variant="caption" color="textSecondary">
-                  {usage.scans} scan{usage.scans === 1 ? '' : 's'} · {usage.recipeRequests} recipe round
-                  {usage.recipeRequests === 1 ? '' : 's'} · {usage.estimates} item estimate
-                  {usage.estimates === 1 ? '' : 's'}
+                  {t('settings.usageScans', { n: usage.scans })} · {t('settings.usageRounds', { n: usage.recipeRequests })} ·{' '}
+                  {t('settings.usageEstimates', { n: usage.estimates })}
                 </ThemedText>
                 <ThemedText variant="caption" color="textSecondary">
-                  {fmt(usage.inputTokens + usage.outputTokens)} tokens, about ${usage.costUsd.toFixed(2)} at list price
+                  {t('settings.usageTokens', { tokens: fmt(usage.inputTokens + usage.outputTokens), cost: usage.costUsd.toFixed(2) })}
                 </ThemedText>
               </View>
             </View>
             <Button
-              title="Reset counter"
+              title={t('settings.resetCounter')}
               compact
               variant="secondary"
               onPress={async () => {
@@ -229,9 +243,12 @@ export default function SettingsScreen() {
         )}
       </Group>
 
-      <Group title="Preferences">
+      <Group title={t('settings.preferences')}>
         <Card>
-          <ThemedText variant="bodyStrong">Language for products & recipes</ThemedText>
+          <ThemedText variant="bodyStrong">{t('settings.language')}</ThemedText>
+          <ThemedText variant="caption" color="textSecondary">
+            {t('settings.languageNote')}
+          </ThemedText>
           <Segmented
             value={settings.language}
             options={[
@@ -241,25 +258,25 @@ export default function SettingsScreen() {
             onChange={(language) => update({ language })}
           />
           <Divider />
-          <ThemedText variant="bodyStrong">Currency</ThemedText>
+          <ThemedText variant="bodyStrong">{t('settings.currency')}</ThemedText>
           <ThemedText variant="caption" color="textSecondary">
-            For totals across receipts and items you add by hand. Each receipt keeps its own.
+            {t('settings.currencyNote')}
           </ThemedText>
           <View style={styles.chips}>
             {CURRENCIES.map(([code, label]) => (
-              <Chip key={code} label={label} selected={settings.currency === code} onPress={() => update({ currency: code })} />
+              <Chip key={code} label={t(label)} selected={settings.currency === code} onPress={() => update({ currency: code })} />
             ))}
           </View>
           <Divider />
           <View style={styles.row}>
             <View style={styles.flex}>
-              <ThemedText variant="bodyStrong">People in your household</ThemedText>
+              <ThemedText variant="bodyStrong">{t('settings.household')}</ThemedText>
               <ThemedText variant="caption" color="textSecondary">
-                Sets recipe servings and the per-person figures.
+                {t('settings.householdNote')}
               </ThemedText>
             </View>
             <Stepper
-              label="People in your household"
+              label={t('settings.household')}
               value={settings.householdSize}
               min={1}
               max={8}
@@ -267,25 +284,25 @@ export default function SettingsScreen() {
             />
           </View>
           <Divider />
-          <ThemedText variant="bodyStrong">Longest cooking time for recipe ideas</ThemedText>
+          <ThemedText variant="bodyStrong">{t('settings.cookTime')}</ThemedText>
           <View style={styles.chips}>
             {COOK_TIMES.map((minutes) => (
               <Chip
                 key={String(minutes)}
-                label={minutes ? `${minutes} min` : 'Any'}
+                label={minutes ? t('common.min', { n: minutes }) : t('settings.any')}
                 selected={settings.maxCookMinutes === minutes}
                 onPress={() => update({ maxCookMinutes: minutes })}
               />
             ))}
           </View>
           <Divider />
-          <ThemedText variant="bodyStrong">Dietary preferences</ThemedText>
+          <ThemedText variant="bodyStrong">{t('settings.diet')}</ThemedText>
           <View style={styles.chips}>
             {DIET_SUGGESTIONS.map((tag) => (
               <Chip
                 key={tag}
-                label={tag}
-                selected={activeDiet.split(',').some((p) => p.trim() === tag.toLowerCase())}
+                label={t(tag)}
+                selected={activeDiet.split(',').some((p) => dietWords(tag).has(p.trim()))}
                 onPress={() => toggleDiet(tag)}
               />
             ))}
@@ -297,18 +314,18 @@ export default function SettingsScreen() {
               if (diet !== settings.diet) update({ diet });
               setDiet(null);
             }}
-            placeholder="Anything else? e.g. no mushrooms"
+            placeholder={t('settings.dietPlaceholder')}
             placeholderTextColor={theme.textTertiary}
             style={inputStyle}
           />
         </Card>
       </Group>
 
-      <Group title="Reminders">
+      <Group title={t('settings.reminders')}>
         <Card>
           <SwitchRow
-            label="Food to use soon"
-            detail="A notification at 17:00 on days when something in your kitchen is about to go off."
+            label={t('settings.useSoonLabel')}
+            detail={t('settings.useSoonDetail')}
             value={settings.remindersEnabled}
             onChange={toggleReminders}
           />
@@ -316,37 +333,37 @@ export default function SettingsScreen() {
             <View style={styles.upcoming}>
               {upcoming.map((u) => (
                 <ThemedText key={u.date.toISOString()} variant="caption" color="textSecondary">
-                  {u.date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}: {u.items.join(', ')}
+                  {u.date.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}: {u.items.join(', ')}
                 </ThemedText>
               ))}
             </View>
           )}
           {settings.remindersEnabled && upcoming.length === 0 && (
             <ThemedText variant="caption" color="textTertiary">
-              Nothing is close to its date in the next week.
+              {t('settings.nothingClose')}
             </ThemedText>
           )}
         </Card>
       </Group>
 
-      <Group title="Data">
+      <Group title={t('settings.data')}>
         <Card padded={false}>
-          <SettingsRow icon="download-outline" label="Export a backup" detail="All receipts, recipes and lists as one file" onPress={doExport} />
+          <SettingsRow icon="download-outline" label={t('settings.export')} detail={t('settings.exportDetail')} onPress={doExport} />
           <Divider />
-          <SettingsRow icon="cloud-upload-outline" label="Import a backup" detail="Merges a NutriTrack backup file into this device" onPress={doImport} />
+          <SettingsRow icon="cloud-upload-outline" label={t('settings.import')} detail={t('settings.importDetail')} onPress={doImport} />
           <Divider />
           <SettingsRow
             icon="sparkles"
-            label="Load sample data"
-            detail="Three shopping trips and recipe ideas"
+            label={t('common.loadSample')}
+            detail={t('settings.sampleDetail')}
             onPress={async () => {
               await loadDemoData();
               success();
-              setToast('Sample data loaded. Have a look around!');
+              setToast(t('settings.sampleLoaded'));
             }}
           />
           <Divider />
-          <SettingsRow icon="trash-outline" label="Delete all receipts" danger onPress={confirmClear} />
+          <SettingsRow icon="trash-outline" label={t('settings.deleteAll')} danger onPress={confirmClear} />
         </Card>
       </Group>
 
@@ -355,7 +372,7 @@ export default function SettingsScreen() {
           NutriTrack 1.0
         </ThemedText>
         <ThemedText variant="caption" color="textTertiary" style={styles.center}>
-          Nutrition values are estimates, not medical advice. Receipts stay on your device.
+          {t('settings.disclaimer')}
         </ThemedText>
       </View>
     </Screen>

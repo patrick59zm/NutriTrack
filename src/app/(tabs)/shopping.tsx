@@ -10,12 +10,14 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { success, tap } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import { shareText } from '@/lib/share';
 import { addToShopping, loadShopping, saveShopping } from '@/lib/storage';
 import type { ShoppingItem } from '@/lib/types';
 
 export default function ShoppingScreen() {
   const theme = useTheme();
+  const t = useT();
   const { data: items, setData, loaded, reload } = useFocusData(loadShopping, [] as ShoppingItem[]);
   const [text, setText] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -46,38 +48,38 @@ export default function ShoppingScreen() {
 
   async function share() {
     const lines = open.map((i) => `☐ ${i.text}`).join('\n');
-    const result = await shareText(`Shopping list\n${lines}\n\nShared from NutriTrack`, 'Shopping list');
-    if (result === 'copied') setToast('List copied to the clipboard.');
+    const result = await shareText(`${t('shopping.listTitle')}\n${lines}\n\n${t('recipe.sharedFrom')}`, t('shopping.listTitle'));
+    if (result === 'copied') setToast(t('shopping.copied'));
   }
 
   return (
     <Screen
-      title="Shopping"
-      subtitle={open.length ? `${open.length} thing${open.length === 1 ? '' : 's'} to buy` : 'Nothing to buy right now'}>
+      title={t('shopping.title')}
+      subtitle={open.length ? t('shopping.toBuyCount', { n: open.length }) : t('shopping.nothing')}>
       <Card>
         <View style={styles.addRow}>
           <TextInput
             value={text}
             onChangeText={setText}
             onSubmitEditing={add}
-            placeholder="Add something, e.g. fresh basil"
+            placeholder={t('shopping.placeholder')}
             placeholderTextColor={theme.textTertiary}
             returnKeyType="done"
             blurOnSubmit={false}
-            accessibilityLabel="Add to the shopping list"
+            accessibilityLabel={t('shopping.addA11y')}
             style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
           />
           <Pressable
             onPress={add}
             disabled={!text.trim()}
             accessibilityRole="button"
-            accessibilityLabel="Add"
+            accessibilityLabel={t('shopping.add')}
             style={[styles.addButton, { backgroundColor: theme.brand, opacity: text.trim() ? 1 : 0.4 }]}>
             <Ionicons name="add" size={24} color={theme.onBrand} />
           </Pressable>
         </View>
         <ThemedText variant="caption" color="textTertiary">
-          Recipes add what you are missing with one tap. Check things off as you shop.
+          {t('shopping.hint')}
         </ThemedText>
       </Card>
 
@@ -88,14 +90,14 @@ export default function ShoppingScreen() {
       )}
 
       {loaded && items.length === 0 && (
-        <EmptyState emoji="🛒" title="Your list is empty" message="Open a recipe and tap “Add missing to list”, or type what you need above.">
-          <Button title="Browse recipes" icon="restaurant-outline" variant="secondary" onPress={() => router.navigate('/recipes')} />
+        <EmptyState emoji="🛒" title={t('shopping.emptyTitle')} message={t('shopping.emptyMessage')}>
+          <Button title={t('shopping.browse')} icon="restaurant-outline" variant="secondary" onPress={() => router.navigate('/recipes')} />
         </EmptyState>
       )}
 
       {open.length > 0 && (
         <Animated.View entering={FadeInDown.duration(350)} style={styles.section}>
-          <SectionHeader title="To buy" action={<TextLink title="Share" onPress={share} />} />
+          <SectionHeader title={t('shopping.toBuy')} action={<TextLink title={t('common.share')} onPress={share} />} />
           <Card padded={false}>
             {open.map((item, i) => (
               <View key={item.id}>
@@ -109,7 +111,7 @@ export default function ShoppingScreen() {
 
       {done.length > 0 && (
         <Animated.View entering={FadeInDown.duration(350)} style={styles.section}>
-          <SectionHeader title="In the basket" action={<TextLink title="Clear" onPress={clearDone} />} />
+          <SectionHeader title={t('shopping.inBasket')} action={<TextLink title={t('shopping.clear')} onPress={clearDone} />} />
           <Card padded={false}>
             {done.map((item, i) => (
               <View key={item.id}>
@@ -126,6 +128,7 @@ export default function ShoppingScreen() {
 
 function Row({ item, onToggle, onRemove }: { item: ShoppingItem; onToggle: () => void; onRemove: () => void }) {
   const theme = useTheme();
+  const t = useT();
   return (
     <View style={styles.row}>
       <Pressable
@@ -145,12 +148,12 @@ function Row({ item, onToggle, onRemove }: { item: ShoppingItem; onToggle: () =>
           </ThemedText>
           {item.from && (
             <ThemedText variant="caption" color="textTertiary">
-              for {item.from}
+              {t('shopping.for', { recipe: item.from })}
             </ThemedText>
           )}
         </View>
       </Pressable>
-      <Pressable onPress={onRemove} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove ${item.text}`}>
+      <Pressable onPress={onRemove} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('shopping.remove', { item: item.text })}>
         <Ionicons name="close" size={18} color={theme.textTertiary} />
       </Pressable>
     </View>

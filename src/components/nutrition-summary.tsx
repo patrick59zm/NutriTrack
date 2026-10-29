@@ -6,13 +6,14 @@ import { StatTile } from '@/components/ui';
 import { MacroColors, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { categoryMeta } from '@/lib/categories';
+import { useT, type Key } from '@/lib/i18n';
 import { fmt, macroSplit } from '@/lib/nutrition';
 import type { Nutrition, ReceiptItem } from '@/lib/types';
 
 const MACROS = [
-  { key: 'protein', label: 'Protein', grams: 'protein_g' },
-  { key: 'carbs', label: 'Carbs', grams: 'carbs_g' },
-  { key: 'fat', label: 'Fat', grams: 'fat_g' },
+  { key: 'protein', label: 'common.protein' as Key, grams: 'protein_g' },
+  { key: 'carbs', label: 'common.carbs' as Key, grams: 'carbs_g' },
+  { key: 'fat', label: 'common.fat' as Key, grams: 'fat_g' },
 ] as const;
 
 /** Donut showing the energy split between protein, carbs and fat, with kcal in the middle. */
@@ -92,6 +93,7 @@ export function MacroBar({ nutrition, height = 6 }: { nutrition: Nutrition; heig
 }
 
 function MacroLegend({ nutrition }: { nutrition: Nutrition }) {
+  const t = useT();
   const split = macroSplit(nutrition);
   return (
     <View style={styles.legend}>
@@ -100,7 +102,7 @@ function MacroLegend({ nutrition }: { nutrition: Nutrition }) {
           <View style={[styles.dot, { backgroundColor: MacroColors[m.key] }]} />
           <View style={styles.flex}>
             <ThemedText variant="caption" color="textSecondary">
-              {m.label}
+              {t(m.label)}
             </ThemedText>
             <ThemedText variant="bodyStrong">
               {fmt(nutrition[m.grams])} g{' '}
@@ -117,6 +119,7 @@ function MacroLegend({ nutrition }: { nutrition: Nutrition }) {
 
 /** Ring, macro legend and the secondary nutrients as tiles. */
 export function NutritionPanel({ nutrition, caption }: { nutrition: Nutrition; caption?: string }) {
+  const t = useT();
   return (
     <View style={styles.panel}>
       <View style={styles.panelTop}>
@@ -124,10 +127,10 @@ export function NutritionPanel({ nutrition, caption }: { nutrition: Nutrition; c
         <MacroLegend nutrition={nutrition} />
       </View>
       <View style={styles.tiles}>
-        <StatTile label="Sugar" value={fmt(nutrition.sugar_g)} unit="g" />
-        <StatTile label="Fiber" value={fmt(nutrition.fiber_g)} unit="g" />
-        <StatTile label="Sat. fat" value={fmt(nutrition.saturated_fat_g)} unit="g" />
-        <StatTile label="Salt" value={fmt(nutrition.salt_g, 1)} unit="g" />
+        <StatTile label={t('common.sugar')} value={fmt(nutrition.sugar_g)} unit="g" />
+        <StatTile label={t('common.fiber')} value={fmt(nutrition.fiber_g)} unit="g" />
+        <StatTile label={t('common.satFat')} value={fmt(nutrition.saturated_fat_g)} unit="g" />
+        <StatTile label={t('common.salt')} value={fmt(nutrition.salt_g, 1)} unit="g" />
       </View>
     </View>
   );
@@ -136,6 +139,7 @@ export function NutritionPanel({ nutrition, caption }: { nutrition: Nutrition; c
 /** Where the calories come from, by product category. */
 export function CategoryBreakdown({ items }: { items: ReceiptItem[] }) {
   const theme = useTheme();
+  useT();
   const byCategory = new Map<string, number>();
   for (const i of items) {
     if (!i.is_food) continue;

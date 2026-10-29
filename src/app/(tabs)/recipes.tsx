@@ -22,6 +22,7 @@ import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { describeError, suggestRecipes } from '@/lib/claude';
 import { failure, success } from '@/lib/haptics';
+import { locale, useT, type Key } from '@/lib/i18n';
 import { daysSince, pantryFrom, receiptsWithin, recipesMatchDiet, type PantryItem } from '@/lib/nutrition';
 import { syncReminders } from '@/lib/reminders';
 import {
@@ -40,7 +41,14 @@ import { DEFAULT_SETTINGS, type SavedRecipe } from '@/lib/types';
 
 const WINDOWS = [3, 5, 7, 14];
 const PANTRY_PREVIEW = 5;
-const WISHES = ['Quick lunch', 'Comfort food', 'Something light', 'Meal prep', 'Kids will eat it', 'One pot'];
+const WISHES: Key[] = [
+  'recipes.wish.quick',
+  'recipes.wish.comfort',
+  'recipes.wish.light',
+  'recipes.wish.mealPrep',
+  'recipes.wish.kids',
+  'recipes.wish.onePot',
+];
 
 const loadRecipesScreen = async () => {
   const [receipts, batch, settings, favorites, cooked] = await Promise.all([
@@ -55,6 +63,7 @@ const loadRecipesScreen = async () => {
 
 export default function RecipesScreen() {
   const theme = useTheme();
+  const t = useT();
   const { data, setData, loaded, reload } = useFocusData(loadRecipesScreen, {
     receipts: [],
     batch: null,
@@ -122,8 +131,8 @@ export default function RecipesScreen() {
   const savedSection = favorites.length > 0 && (
     <View style={styles.list}>
       <SectionHeader
-        title={`Saved recipes · ${favorites.length}`}
-        action={<TextLink title={showSaved ? 'Hide' : 'Show'} onPress={() => setShowSaved((s) => !s)} />}
+        title={t('recipes.savedCount', { n: favorites.length })}
+        action={<TextLink title={showSaved ? t('common.hide') : t('common.show')} onPress={() => setShowSaved((s) => !s)} />}
       />
       {showSaved &&
         favorites.map((f, i) => (
@@ -136,14 +145,11 @@ export default function RecipesScreen() {
 
   if (loaded && receipts.length === 0) {
     return (
-      <Screen title="Recipes" subtitle="Ideas that use up what you bought">
-        <EmptyState
-          emoji="🍳"
-          title="Nothing in your kitchen yet"
-          message="Scan a receipt and NutriTrack suggests dishes that use your groceries before they spoil.">
-          <Button title="Scan a receipt" icon="scan" onPress={() => router.navigate('/')} />
+      <Screen title={t('recipes.title')} subtitle={t('recipes.subtitle')}>
+        <EmptyState emoji="🍳" title={t('recipes.emptyTitle')} message={t('recipes.emptyMessage')}>
+          <Button title={t('common.scanReceipt')} icon="scan" onPress={() => router.navigate('/')} />
           <Button
-            title="Load sample data"
+            title={t('common.loadSample')}
             icon="sparkles"
             variant="secondary"
             onPress={async () => {
@@ -160,22 +166,22 @@ export default function RecipesScreen() {
   const visiblePantry = showAll ? pantry : pantry.slice(0, PANTRY_PREVIEW);
 
   return (
-    <Screen title="Recipes" subtitle="Ideas that use up what you bought">
+    <Screen title={t('recipes.title')} subtitle={t('recipes.subtitle')}>
       <Animated.View entering={FadeInDown.duration(400)}>
         <Card>
           <View style={styles.kitchenHead}>
             <View style={styles.flex}>
-              <ThemedText variant="headline">Your kitchen</ThemedText>
+              <ThemedText variant="headline">{t('recipes.yourKitchen')}</ThemedText>
               <ThemedText variant="caption" color="textSecondary">
-                {pantry.length} items bought in the last {windowDays} days
-                {urgentCount > 0 ? ` · ${urgentCount} to use soon` : ''}
-                {cookedThisWeek > 0 ? ` · ${cookedThisWeek} meal${cookedThisWeek === 1 ? '' : 's'} cooked this week` : ''}
+                {t('recipes.kitchenCount', { n: pantry.length, days: windowDays })}
+                {urgentCount > 0 ? t('recipes.toUseSoon', { n: urgentCount }) : ''}
+                {cookedThisWeek > 0 ? t('recipes.cookedThisWeek', { n: cookedThisWeek }) : ''}
               </ThemedText>
             </View>
           </View>
           <View style={styles.chips}>
             {WINDOWS.map((d) => (
-              <Chip key={d} label={`${d} days`} selected={d === windowDays} onPress={() => changeWindow(d)} />
+              <Chip key={d} label={t('common.days', { n: d })} selected={d === windowDays} onPress={() => changeWindow(d)} />
             ))}
           </View>
 
@@ -183,11 +189,11 @@ export default function RecipesScreen() {
             <Banner
               tone="brand"
               icon="checkmark-done-outline"
-              message={`${undo.name} marked as used up.`}
+              message={t('recipes.usedUp', { name: undo.name })}
               onDismiss={() => setUndo(null)}
             />
           )}
-          {undo && <TextLink title="Undo" onPress={() => consume(undo, false)} />}
+          {undo && <TextLink title={t('common.undo')} onPress={() => consume(undo, false)} />}
 
           {pantry.length > 0 ? (
             <View>
@@ -200,18 +206,18 @@ export default function RecipesScreen() {
               {pantry.length > PANTRY_PREVIEW && (
                 <View style={styles.showAll}>
                   <TextLink
-                    title={showAll ? 'Show less' : `Show all ${pantry.length} items`}
+                    title={showAll ? t('recipes.showLess') : t('recipes.showAll', { n: pantry.length })}
                     onPress={() => setShowAll((s) => !s)}
                   />
                 </View>
               )}
               <ThemedText variant="caption" color="textTertiary">
-                Tap the tick on an item once it is used up, and it leaves the recipe ideas.
+                {t('recipes.tickHint')}
               </ThemedText>
             </View>
           ) : (
             <ThemedText variant="caption" color="textSecondary">
-              Nothing bought in this window. Pick a longer one or scan a new receipt.
+              {t('recipes.nothingInWindow')}
             </ThemedText>
           )}
         </Card>
@@ -219,34 +225,34 @@ export default function RecipesScreen() {
 
       <Animated.View entering={FadeInDown.duration(400).delay(60)}>
         <Card>
-          <ThemedText variant="headline">What are you in the mood for?</ThemedText>
+          <ThemedText variant="headline">{t('recipes.mood')}</ThemedText>
           <View style={styles.chips}>
             {WISHES.map((w) => (
-              <Chip key={w} label={w} selected={wish === w} onPress={() => setWish(wish === w ? '' : w)} />
+              <Chip key={w} label={t(w)} selected={wish === t(w)} onPress={() => setWish(wish === t(w) ? '' : t(w))} />
             ))}
           </View>
           <TextInput
             value={wish}
             onChangeText={setWish}
-            placeholder="Optional, e.g. something with the salmon tonight"
+            placeholder={t('recipes.wishPlaceholder')}
             placeholderTextColor={theme.textTertiary}
-            accessibilityLabel="What are you in the mood for?"
+            accessibilityLabel={t('recipes.mood')}
             style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
           />
           <Button
-            title={busy ? 'Cooking up ideas…' : batch ? 'Suggest new recipes' : 'Suggest recipes'}
+            title={busy ? t('recipes.cooking') : batch ? t('recipes.suggestNew') : t('recipes.suggest')}
             icon="sparkles"
             loading={busy}
             disabled={pantry.length === 0}
             onPress={generate}
           />
           <ThemedText variant="caption" color="textTertiary">
-            {settings.householdSize} serving{settings.householdSize === 1 ? '' : 's'}
-            {settings.maxCookMinutes ? ` · up to ${settings.maxCookMinutes} min` : ''}
+            {t('common.servings', { n: settings.householdSize })}
+            {settings.maxCookMinutes ? t('recipes.upTo', { n: settings.maxCookMinutes }) : ''}
             {settings.diet ? ` · ${settings.diet}` : ''}
             {' · '}
             <ThemedText variant="caption" color="brand" onPress={() => router.navigate('/settings')}>
-              Change
+              {t('common.change')}
             </ThemedText>
           </ThemedText>
         </Card>
@@ -257,11 +263,7 @@ export default function RecipesScreen() {
         <Banner
           tone="warn"
           icon="leaf-outline"
-          message={
-            settings.diet
-              ? `Your dietary preferences changed. Tap Suggest recipes for ideas that fit: ${settings.diet}.`
-              : 'Your dietary preferences changed. Tap Suggest recipes for new ideas.'
-          }
+          message={settings.diet ? t('recipes.dietChangedWith', { diet: settings.diet }) : t('recipes.dietChanged')}
         />
       )}
 
@@ -276,15 +278,15 @@ export default function RecipesScreen() {
       {!busy && batch && batch.recipes.length > 0 && (
         <View style={styles.list}>
           <SectionHeader
-            title="Ideas for you"
+            title={t('recipes.ideasForYou')}
             action={
               <ThemedText variant="caption" color="textTertiary">
-                {new Date(batch.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                {new Date(batch.createdAt).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}
               </ThemedText>
             }
           />
           {batch.sampleReason && (
-            <Banner tone="warn" icon="flask-outline" message={`Sample ideas, not from Claude. ${batch.sampleReason}`} />
+            <Banner tone="warn" icon="flask-outline" message={t('recipes.sampleIdeas', { reason: batch.sampleReason })} />
           )}
           {batch.recipes.map((r, i) => (
             <Animated.View key={`${r.title}-${i}`} entering={FadeInDown.duration(400).delay(70 * i)}>

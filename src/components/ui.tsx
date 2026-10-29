@@ -23,6 +23,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Radius, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { tap } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -296,6 +297,7 @@ export function Banner({
   onDismiss?: () => void;
 }) {
   const theme = useTheme();
+  const t = useT();
   if (!message) return null;
   const colors = {
     danger: { bg: theme.dangerSoft, fg: theme.danger, icon: 'alert-circle-outline' as const },
@@ -309,7 +311,7 @@ export function Banner({
         {message}
       </ThemedText>
       {onDismiss && (
-        <Pressable onPress={onDismiss} hitSlop={10} accessibilityLabel="Dismiss">
+        <Pressable onPress={onDismiss} hitSlop={10} accessibilityLabel={t('common.dismiss')}>
           <Ionicons name="close" size={18} color={colors.fg} />
         </Pressable>
       )}
@@ -396,10 +398,11 @@ export function Sheet({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const t = useT();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close" />
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel={t('common.close')} />
         <View
           style={[
             styles.sheet,
@@ -410,7 +413,7 @@ export function Sheet({
             <ThemedText variant="title" style={styles.flex}>
               {title}
             </ThemedText>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close" accessibilityRole="button">
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={t('common.close')} accessibilityRole="button">
               <IconCircle icon="close" size={32} />
             </Pressable>
           </View>
@@ -511,6 +514,7 @@ export function Stepper({
   label: string;
 }) {
   const theme = useTheme();
+  const t = useT();
   const button = (icon: IconName, next: number, disabled: boolean, name: string) => (
     <Pressable
       onPress={() => {
@@ -526,11 +530,11 @@ export function Stepper({
   );
   return (
     <View style={styles.stepper} accessibilityLabel={label}>
-      {button('remove', Math.max(min, value - step), value <= min, 'Less')}
+      {button('remove', Math.max(min, value - step), value <= min, t('common.less'))}
       <ThemedText variant="headline" style={styles.stepperValue}>
         {format ? format(value) : String(value)}
       </ThemedText>
-      {button('add', Math.min(max, value + step), value >= max, 'More')}
+      {button('add', Math.min(max, value + step), value >= max, t('common.more'))}
     </View>
   );
 }
