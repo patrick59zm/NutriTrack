@@ -7,8 +7,9 @@ import { failure, success } from '@/lib/haptics';
 import { t } from '@/lib/i18n';
 import { prepareReceiptImages } from '@/lib/image';
 import { deleteReceiptPhoto, saveReceiptPhoto } from '@/lib/photos';
+import { findDuplicate } from '@/lib/nutrition';
 import { syncReminders } from '@/lib/reminders';
-import { loadSettings, saveReceipt, updateReceipt } from '@/lib/storage';
+import { loadReceipts, loadSettings, saveReceipt, updateReceipt } from '@/lib/storage';
 import type { Receipt } from '@/lib/types';
 
 /** A long receipt can be photographed in parts; more than this would make one very slow request. */
@@ -41,6 +42,8 @@ export function useScanner({ replaceId, onDone }: { replaceId?: string; onDone: 
         if (abort.signal.aborted) return;
         const fresh = await analyzeReceipt(imageSets.flat(), settings, { signal: abort.signal, onPhase: setPhase });
         const id = replaceId ?? fresh.id;
+        const twin = findDuplicate({ ...fresh, id }, await loadReceipts());
+        if (twin) fresh.duplicateOf = twin.id;
         const photoUri = (await saveReceiptPhoto(photos[0], id)) ?? undefined;
         let saved: Receipt | null;
         if (replaceId) {

@@ -40,6 +40,7 @@ export function ItemEditor({
   const [quantity, setQuantity] = useState(item ? fmt(item.quantity, 2) : '');
   const [weight, setWeight] = useState(item ? String(Math.round(item.total_weight_g)) : '');
   const [price, setPrice] = useState(item?.price != null ? item.price.toFixed(2) : '');
+  const [shelf, setShelf] = useState(item ? String(Math.round(item.shelf_life_days)) : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
@@ -54,6 +55,7 @@ export function ItemEditor({
       setQuantity(fmt(estimated.quantity, 2));
       setWeight(String(Math.round(estimated.total_weight_g)));
       setPrice(estimated.price != null ? estimated.price.toFixed(2) : '');
+      setShelf(String(Math.round(estimated.shelf_life_days)));
       success();
     } catch (e) {
       failure();
@@ -72,6 +74,7 @@ export function ItemEditor({
     }
     const q = parseNumber(quantity);
     const w = parseNumber(weight);
+    const days = parseNumber(shelf);
     const next: ReceiptItem = withTotals(
       {
         ...draft,
@@ -79,6 +82,7 @@ export function ItemEditor({
         quantity: q && q > 0 ? q : 1,
         total_weight_g: w && w >= 0 ? w : draft.total_weight_g,
         price: price.trim() ? parseNumber(price) : null,
+        shelf_life_days: days != null && days >= 0 ? days : draft.shelf_life_days,
         edited: true,
       },
       draft.id,
@@ -148,6 +152,13 @@ export function ItemEditor({
             <View style={styles.flex}>
               <Field label={t('editor.price', { currency: settings.currency })} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
             </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <Field label={t('editor.shelf')} value={shelf} onChangeText={setShelf} keyboardType="number-pad" hint={t('editor.shelfHint')} />
+            </View>
+            <View style={styles.flex} />
           </View>
 
           <SwitchRow

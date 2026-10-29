@@ -10,7 +10,7 @@ import { AppErrorBoundary } from '@/components/app-error-boundary';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguage, useT } from '@/lib/i18n';
-import { prepareReminders, syncReminders } from '@/lib/reminders';
+import { onReminderTap, prepareReminders, syncReminders } from '@/lib/reminders';
 import { loadSettings } from '@/lib/storage';
 
 // Keep the splash screen up until the stored settings (and with them the language) are in.
@@ -41,6 +41,7 @@ export default function RootLayout() {
       .catch(() => {})
       .then(() => setReady(true));
     prepareReminders().then(syncReminders);
+    return onReminderTap(() => router.navigate('/recipes'));
   }, []);
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});

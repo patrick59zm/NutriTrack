@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Constants from 'expo-constants';
 import { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -380,7 +381,8 @@ export default function SettingsScreen() {
 
       <View style={styles.about}>
         <ThemedText variant="captionStrong" color="textTertiary">
-          NutriTrack 1.0
+          NutriTrack {Constants.expoConfig?.version ?? '1.0'}
+          {Constants.expoConfig?.android?.versionCode ? ` · ${t('settings.build', { n: Constants.expoConfig.android.versionCode })}` : ''}
         </ThemedText>
         <ThemedText variant="caption" color="textTertiary" style={styles.center}>
           {t('settings.disclaimer')}

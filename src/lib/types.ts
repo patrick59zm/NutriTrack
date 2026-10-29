@@ -91,6 +91,8 @@ export type Receipt = {
   usage?: Usage;
   /** Demo build only: set when a sample was shown instead of reading the photo, with the reason. */
   sampleReason?: string;
+  /** Id of an earlier receipt with the same store, day and total; cleared once the person keeps both. */
+  duplicateOf?: string;
 };
 
 export const RecipeSchema = z.object({

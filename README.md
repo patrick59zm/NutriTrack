@@ -10,7 +10,7 @@ Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the rec
 - Camera or gallery on the phone, file upload in the browser. Long receipts are cut into overlapping tiles so every line is read at full resolution, and a very long one can be photographed in up to four parts that are read as one receipt; the scan can be cancelled.
 - Swiss and German stores (Migros, Coop, Denner, Volg, REWE, Lidl, Aldi, …), CHF and EUR, deposits (Depot/Pfand) and discounts handled as non-food.
 - The item prices are checked against the printed total. When they do not add up, Claude reads the receipt a second time and the receipt carries a warning until you have checked the items.
-- The photo is kept with the receipt and can be viewed full screen; every item is editable (name, quantity, weight, price, category, food or not), items can be added by description ("Bananen 1 kg") and estimated by Claude, the store, purchase date, printed total and currency can be corrected, and a receipt can be scanned again.
+- The photo is kept with the receipt and can be viewed full screen; every item is editable (name, quantity, weight, price, shelf life, category, food or not), items can be added by description ("Bananen 1 kg") and estimated by Claude, the store, purchase date, printed total and currency can be corrected, and a receipt can be scanned again. A receipt scanned twice is recognized (same store, day and total) and can be dropped with one tap.
 
 **Nutrition**
 - Calories, protein, carbs, fat, sugar, saturated fat, fiber and salt per item (per 100 g and for the amount bought), per receipt, per week and per 30 days, plus the figure per person and day for your household.
@@ -21,7 +21,7 @@ Built with Expo (React Native, SDK 57). Claude (`claude-opus-5-5`) reads the rec
 - Everything bought in the last 3, 5, 7 or 14 days with a freshness label from the estimated shelf life. Tick off what is used up.
 - Recipe ideas from Claude for what is in the kitchen, honoring dietary preferences, household size, a cooking-time limit and a wish of the day ("something light", "one pot"). Ingredients are marked "In kitchen" or "To buy"; the missing ones go to the shopping list with one tap.
 - Save recipes, share them as text, and log "I cooked this", which marks the ingredients as used up.
-- Opt-in reminder at 17:00 on days when something in the kitchen is about to go off.
+- Opt-in reminder at 17:00 on days when something in the kitchen is about to go off; tapping it opens the recipe ideas.
 
 **Keeping things**
 - Receipts, recipes, lists and settings stay on the device. A backup can be exported as one JSON file and imported on another phone, every item can be exported as a CSV file for spreadsheets, and the Claude usage (tokens and list-price cost) is counted per device.
@@ -93,7 +93,7 @@ src/lib/i18n.ts                English and German strings
 src/lib/storage.ts             AsyncStorage / SecureStore persistence
 src/lib/backup.ts              Backup export and import, file delivery
 src/lib/csv.ts                 Items as a spreadsheet
-src/lib/reminders.ts           Use-soon notifications
+src/lib/reminders.ts           Use-soon notifications (plan in reminder-plan.ts)
 src/lib/demo.ts                Sample data and demo-build results
 ```
 

@@ -34,9 +34,14 @@ export default function ReceiptScreen() {
   const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
   const load = useCallback(async () => {
     const [receipt, settings] = await Promise.all([getReceipt(id), loadSettings()]);
-    return { receipt, settings };
+    const twin = receipt?.duplicateOf ? await getReceipt(receipt.duplicateOf) : null;
+    return { receipt, settings, twin };
   }, [id]);
-  const { data, setData, loaded, reload } = useFocusData(load, { receipt: null as Receipt | null, settings: DEFAULT_SETTINGS });
+  const { data, setData, loaded, reload } = useFocusData(load, {
+    receipt: null as Receipt | null,
+    settings: DEFAULT_SETTINGS,
+    twin: null as Receipt | null,
+  });
   const [showFresh, setShowFresh] = useState(fresh === '1');
   const [editing, setEditing] = useState<Editing>(null);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
@@ -53,12 +58,12 @@ export default function ReceiptScreen() {
     },
   });
 
-  const { receipt, settings } = data;
+  const { receipt, settings, twin } = data;
 
   const apply = useCallback(
     async (change: (r: Receipt) => Receipt) => {
       const next = await updateReceipt(id, (r) => recomputeReceipt(change(r)));
-      if (next) setData((d) => ({ ...d, receipt: next }));
+      if (next) setData((d) => ({ ...d, receipt: next, twin: next.duplicateOf ? d.twin : null }));
       syncReminders();
     },
     [id, setData],
@@ -202,6 +207,23 @@ export default function ReceiptScreen() {
       {receipt.warnings?.map((w) => (
         <Banner key={w} tone="warn" message={w} />
       ))}
+      {twin && (
+        <View style={styles.duplicate}>
+          <Banner
+            tone="warn"
+            icon="copy-outline"
+            message={t('receipt.duplicate', {
+              date: new Date(twin.purchasedAt).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }),
+              store: twin.store ?? t('common.receipt'),
+            })}
+          />
+          <View style={styles.duplicateActions}>
+            <TextLink title={t('receipt.openOther')} onPress={() => router.replace({ pathname: '/receipt/[id]', params: { id: twin.id } })} />
+            <TextLink title={t('receipt.deleteThis')} onPress={confirmDelete} />
+            <TextLink title={t('receipt.keepBoth')} onPress={() => apply((r) => ({ ...r, duplicateOf: undefined }))} />
+          </View>
+        </View>
+      )}
       {showFresh && !receipt.sampleReason && (
         <Banner
           tone="brand"
@@ -480,5 +502,7 @@ const styles = StyleSheet.create({
   cell: { width: 88, textAlign: 'right' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   note: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  duplicate: { gap: Spacing.two },
+  duplicateActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four, paddingHorizontal: Spacing.one },
   rescanRow: { flexDirection: 'row', gap: Spacing.two },
 });

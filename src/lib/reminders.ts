@@ -1,16 +1,16 @@
 import { Platform } from 'react-native';
 
 import { t } from './i18n';
-import { pantryFrom } from './nutrition';
+import { reminderPlan } from './reminder-plan';
 import { loadReceipts, loadSettings } from './storage';
 import type { Receipt } from './types';
+
+export { reminderPlan } from './reminder-plan';
 
 // One daily reminder, at 17:00, on days when something in the kitchen is about to go off.
 // Opt-in from Settings; nothing is scheduled until the person turns it on.
 
 const CHANNEL = 'use-soon';
-const HOUR = 17;
-const DAYS_AHEAD = 7;
 
 const supported = Platform.OS === 'android' || Platform.OS === 'ios';
 
@@ -55,18 +55,27 @@ export async function prepareReminders() {
   } catch {}
 }
 
-/** The lines a reminder would say for each of the next days, for display and scheduling. */
-export function reminderPlan(receipts: Receipt[], now = new Date()) {
-  const pantry = pantryFrom(receipts, 60, now);
-  const plan: { date: Date; items: string[] }[] = [];
-  for (let d = 0; d < DAYS_AHEAD; d++) {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, HOUR, 0, 0);
-    if (date.getTime() <= now.getTime()) continue;
-    // Items whose last good day is this day or the next: "use today or tomorrow".
-    const items = pantry.filter((p) => p.daysLeft - d >= 0 && p.daysLeft - d <= 1).map((p) => p.name);
-    if (items.length) plan.push({ date, items: [...new Set(items)] });
-  }
-  return plan;
+/**
+ * Calls `handler` when the person taps a reminder, including the tap that started the
+ * app. Returns a function that stops listening.
+ */
+export function onReminderTap(handler: () => void) {
+  if (!supported) return () => {};
+  let stopped = false;
+  let remove = () => {};
+  notifications()
+    .then(async (N) => {
+      if (stopped) return;
+      const subscription = N.addNotificationResponseReceivedListener(() => handler());
+      remove = () => subscription.remove();
+      const last = await N.getLastNotificationResponseAsync();
+      if (last && !stopped) handler();
+    })
+    .catch(() => {});
+  return () => {
+    stopped = true;
+    remove();
+  };
 }
 
 /** Re-plans reminders from what is stored; call after anything in the kitchen changes. */

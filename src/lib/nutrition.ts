@@ -80,6 +80,31 @@ export function priceWarnings(items: { price: number | null }[], total: number |
   ];
 }
 
+const sameDay = (a: string, b: string) => {
+  const x = new Date(a);
+  const y = new Date(b);
+  return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+};
+
+/**
+ * A receipt scanned twice: same store, same day and the same printed total as one that
+ * is already saved. Returns that earlier receipt, so the person can decide.
+ */
+export function findDuplicate(candidate: Receipt, existing: Receipt[]): Receipt | null {
+  if (!candidate.store || candidate.totalPrice == null) return null;
+  const store = candidate.store.trim().toLowerCase();
+  return (
+    existing.find(
+      (r) =>
+        r.id !== candidate.id &&
+        r.store?.trim().toLowerCase() === store &&
+        r.totalPrice != null &&
+        Math.abs(r.totalPrice - candidate.totalPrice!) < 0.01 &&
+        sameDay(r.purchasedAt, candidate.purchasedAt),
+    ) ?? null
+  );
+}
+
 /** Share of energy from protein / carbs / fat (4 / 4 / 9 kcal per gram). */
 export function macroSplit(n: Nutrition) {
   const p = n.protein_g * 4;
