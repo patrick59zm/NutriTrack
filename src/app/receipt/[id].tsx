@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
+import { BasketCheck } from '@/components/basket-check';
 import { ImageFileInput } from '@/components/image-file-input';
 import { ItemEditor } from '@/components/item-editor';
 import { CategoryBreakdown, MacroBar, NutritionPanel } from '@/components/nutrition-summary';
@@ -19,6 +20,7 @@ import { useScanner } from '@/hooks/use-scanner';
 import { useTheme } from '@/hooks/use-theme';
 import { itemEmoji } from '@/lib/categories';
 import { tap } from '@/lib/haptics';
+import { basketMetrics } from '@/lib/insights';
 import { fmt, money, priceCheck, recomputeReceipt } from '@/lib/nutrition';
 import { deleteReceipt, getReceipt, loadSettings, updateReceipt } from '@/lib/storage';
 import { DEFAULT_SETTINGS, type Nutrition, type Receipt, type ReceiptItem } from '@/lib/types';
@@ -71,6 +73,7 @@ export default function ReceiptScreen() {
   const date = new Date(receipt.purchasedAt);
   const check = priceCheck(receipt.items, receipt.totalPrice);
   const cost = receipt.usage;
+  const metrics = basketMetrics(receipt.totals, receipt.items);
 
   function confirmDelete() {
     const run = async () => {
@@ -199,6 +202,15 @@ export default function ReceiptScreen() {
           <Card>
             <ThemedText variant="headline">Where the calories come from</ThemedText>
             <CategoryBreakdown items={receipt.items} />
+          </Card>
+        </Animated.View>
+      )}
+
+      {metrics.length > 0 && (
+        <Animated.View entering={FadeInDown.duration(400).delay(150)}>
+          <Card>
+            <ThemedText variant="headline">Basket check</ThemedText>
+            <BasketCheck metrics={metrics} />
           </Card>
         </Animated.View>
       )}

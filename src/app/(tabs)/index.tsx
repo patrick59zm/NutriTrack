@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { BasketCheck } from '@/components/basket-check';
 import { ImageFileInput } from '@/components/image-file-input';
 import { NutritionPanel } from '@/components/nutrition-summary';
 import { PantryStrip } from '@/components/pantry';
@@ -28,7 +29,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useScanner } from '@/hooks/use-scanner';
 import { DEMO_MODE } from '@/lib/config';
 import { success } from '@/lib/haptics';
-import { money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
+import { basketMetrics } from '@/lib/insights';
+import { fmt, money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
 import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings, loadShopping } from '@/lib/storage';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 
@@ -74,6 +76,12 @@ export default function TodayScreen() {
   const weekTotals = sum(recent.map((r) => r.totals));
   const spent = recent.reduce((a, r) => a + (r.totalPrice ?? 0), 0);
   const foodCount = recent.reduce((a, r) => a + r.items.filter((i) => i.is_food).length, 0);
+  const perPersonDay = weekTotals.kcal / SUMMARY_DAYS / Math.max(1, settings.householdSize);
+  const metrics = basketMetrics(
+    weekTotals,
+    recent.flatMap((r) => r.items),
+    { days: SUMMARY_DAYS, people: settings.householdSize },
+  );
   const pantry = pantryFrom(receipts, SUMMARY_DAYS);
   const urgent = pantry.filter((p) => p.daysLeft <= 4);
   const strip = (urgent.length >= 3 ? urgent : pantry).slice(0, 10);
@@ -172,6 +180,27 @@ export default function TodayScreen() {
               <StatTile label="Items" value={String(foodCount)} icon="basket-outline" />
               <StatTile label="Spent" value={money(spent, settings.currency)} icon="wallet-outline" />
             </View>
+            <View style={[styles.perPerson, { backgroundColor: theme.brandSoft }]}>
+              <ThemedText variant="headline" color="brandStrong">
+                ≈ {fmt(perPersonDay)} kcal
+              </ThemedText>
+              <ThemedText variant="caption" color="textSecondary" style={styles.flex}>
+                bought per person and day for {settings.householdSize} {settings.householdSize === 1 ? 'person' : 'people'}
+                {' · '}
+                <ThemedText variant="caption" color="brand" onPress={() => router.navigate('/settings')}>
+                  Change
+                </ThemedText>
+              </ThemedText>
+            </View>
+          </Card>
+        </Animated.View>
+      )}
+
+      {metrics.length > 0 && (
+        <Animated.View entering={enter()} style={styles.section}>
+          <SectionHeader title="Basket check" />
+          <Card>
+            <BasketCheck metrics={metrics} />
           </Card>
         </Animated.View>
       )}
@@ -262,6 +291,13 @@ const styles = StyleSheet.create({
   heroButtons: { flexDirection: 'row', gap: Spacing.two },
   keyCard: { flexDirection: 'row', alignItems: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
+  perPerson: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Radius.md,
+  },
   recipeTeaser: { flexDirection: 'row', alignItems: 'center' },
   teaserEmoji: { fontSize: 28, lineHeight: 36, letterSpacing: -4 },
 });
