@@ -33,7 +33,7 @@ import { DEMO_MODE } from '@/lib/config';
 import { success } from '@/lib/haptics';
 import { locale, t, useT } from '@/lib/i18n';
 import { basketMetrics } from '@/lib/insights';
-import { fmt, money, pantryFrom, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
+import { fmt, money, pantryFrom, receiptSpend, receiptsWithin, recipesMatchDiet, sum } from '@/lib/nutrition';
 import { getApiKey, loadDemoData, loadReceipts, loadRecipes, loadSettings, loadShopping } from '@/lib/storage';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 
@@ -80,7 +80,7 @@ export default function TodayScreen() {
   const { receipts, recipes, hasKey, settings, toBuy } = data;
   const recent = receiptsWithin(receipts, SUMMARY_DAYS);
   const weekTotals = sum(recent.map((r) => r.totals));
-  const spent = recent.reduce((a, r) => a + (r.totalPrice ?? 0), 0);
+  const spent = recent.reduce((a, r) => a + receiptSpend(r), 0);
   const foodCount = recent.reduce((a, r) => a + r.items.filter((i) => i.is_food).length, 0);
   const perPersonDay = weekTotals.kcal / SUMMARY_DAYS / Math.max(1, settings.householdSize);
   const metrics = basketMetrics(

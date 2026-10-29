@@ -125,7 +125,7 @@ export async function analyzeReceipt(
 ): Promise<Receipt> {
   options.onPhase?.('reading');
   const { analysis, usage, sampleReason } = DEMO_MODE
-    ? await analyzeWithViewerClaude(images, settings.language)
+    ? await analyzeWithViewerClaude(images, settings.language, options)
     : await requestAnalysis(images, settings.language, options);
   if (!analysis.is_receipt || analysis.items.length === 0) {
     throw new Error(t('error.noReceipt'));
@@ -206,8 +206,11 @@ Draft:
 ${JSON.stringify(analysis)}`;
       const second = await run(hint);
       usage = addUsage(usage, second.usage);
-      const check = priceCheck(second.analysis.items, second.analysis.total_price);
-      if (Math.abs(check.gap) < Math.abs(first.gap) && second.analysis.items.length > 0) analysis = second.analysis;
+      const again = second.analysis;
+      const usable =
+        again.is_receipt && again.items.length > 0 && again.total_price != null && again.items.some((i) => i.price != null);
+      const check = priceCheck(again.items, again.total_price);
+      if (usable && Math.abs(check.gap) < Math.abs(first.gap)) analysis = again;
     } catch (e) {
       if (e instanceof Anthropic.APIUserAbortError) throw e;
       // The first reading stands; its price warning tells the user to check it.
@@ -225,6 +228,7 @@ ${JSON.stringify(analysis)}`;
 async function analyzeWithViewerClaude(
   images: PreparedImage[],
   language: Language,
+  options: ScanOptions = {},
 ): Promise<{ analysis: ReceiptAnalysis; usage?: Usage; sampleReason?: string }> {
   const claude = await viewerClaude();
   if (!claude) return { analysis: await demoScanAnalysis(), sampleReason: noClaudeHere() };
@@ -234,13 +238,13 @@ async function analyzeWithViewerClaude(
   const sent = images.slice(0, limits.images.maxCount);
   const prompt = `${RECEIPT_SYSTEM}\n\n${receiptInstruction(sent.length, language)}\n\n${jsonInstruction(ReceiptAnalysisSchema)}`;
   try {
-    const raw = await claude.json(prompt, { images: sent.map(toBlob), cache: false });
+    const raw = await claude.json(prompt, { images: sent.map(toBlob), cache: false, signal: options.signal });
     return {
       analysis: parseLenient(ReceiptAnalysisSchema, raw, t('error.unreadable')),
     };
   } catch (e) {
     if (isUnavailable(e)) return { analysis: await demoScanAnalysis(), sampleReason: unavailableReason(e) };
-    if (e instanceof Error) throw e;
+    if (e instanceof Error || isCancelled(e)) throw e;
     throw new Error(viewerErrorMessage(e));
   }
 }
@@ -394,7 +398,11 @@ async function recipesWithViewerClaude(
 // Helpers
 
 export function isCancelled(e: unknown) {
-  return e instanceof Anthropic.APIUserAbortError || (e instanceof Error && e.name === 'AbortError');
+  return (
+    e instanceof Anthropic.APIUserAbortError ||
+    (e instanceof Error && e.name === 'AbortError') ||
+    (e as { code?: string } | null)?.code === 'cancelled'
+  );
 }
 
 export function describeError(e: unknown): string {

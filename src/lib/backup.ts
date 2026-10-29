@@ -117,6 +117,24 @@ function isBackup(value: unknown): value is Backup {
   return !!v && v.app === 'NutriTrack' && Array.isArray(v.receipts);
 }
 
+// A backup file is data from outside: only records with the shape the app relies on are taken.
+const isReceiptShape = (r: unknown): r is Receipt => {
+  const v = r as Partial<Receipt> | null;
+  return !!v && typeof v.id === 'string' && typeof v.purchasedAt === 'string' && Array.isArray(v.items) && !!v.totals;
+};
+const isSavedRecipe = (f: unknown): f is SavedRecipe => {
+  const v = f as Partial<SavedRecipe> | null;
+  return !!v && typeof v.id === 'string' && !!v.recipe && typeof v.recipe.title === 'string';
+};
+const isShoppingItem = (s: unknown): s is ShoppingItem => {
+  const v = s as Partial<ShoppingItem> | null;
+  return !!v && typeof v.id === 'string' && typeof v.text === 'string';
+};
+const isCookedMeal = (m: unknown): m is CookedMeal => {
+  const v = m as Partial<CookedMeal> | null;
+  return !!v && typeof v.id === 'string' && typeof v.title === 'string';
+};
+
 /**
  * Merges a backup into what is on the device: receipts by id (the file wins), saved
  * recipes and cooked meals by id, open shopping lines by text; settings from the file.
@@ -137,25 +155,29 @@ export async function importBackup(text: string): Promise<{ receipts: number; fa
     loadCooked(),
   ]);
 
+  const incoming = parsed.receipts.filter(isReceiptShape);
   const byId = new Map(receipts.map((r) => [r.id, r]));
-  for (const r of parsed.receipts) byId.set(r.id, ensureItemIds({ ...byId.get(r.id), ...r, photoUri: byId.get(r.id)?.photoUri }));
+  for (const r of incoming) byId.set(r.id, ensureItemIds({ ...byId.get(r.id), ...r, photoUri: byId.get(r.id)?.photoUri }));
   await saveReceipts([...byId.values()]);
 
   const favIds = new Set(favorites.map((f) => f.id));
-  const newFavs = (parsed.favorites ?? []).filter((f) => !favIds.has(f.id));
+  const newFavs = (Array.isArray(parsed.favorites) ? parsed.favorites : []).filter(isSavedRecipe).filter((f) => !favIds.has(f.id));
   await saveFavorites([...newFavs, ...favorites]);
 
   const openTexts = new Set(shopping.map((s) => s.text.toLowerCase()));
-  const newShopping = (parsed.shopping ?? []).filter((s) => !openTexts.has(s.text.toLowerCase()));
+  const newShopping = (Array.isArray(parsed.shopping) ? parsed.shopping : [])
+    .filter(isShoppingItem)
+    .filter((s) => !openTexts.has(s.text.toLowerCase()));
   await saveShopping([...newShopping, ...shopping]);
 
   const mealIds = new Set(cooked.map((m) => m.id));
-  await saveCooked([...(parsed.cooked ?? []).filter((m) => !mealIds.has(m.id)), ...cooked].slice(0, 200));
+  const newMeals = (Array.isArray(parsed.cooked) ? parsed.cooked : []).filter(isCookedMeal).filter((m) => !mealIds.has(m.id));
+  await saveCooked([...newMeals, ...cooked].slice(0, 200));
 
-  if (parsed.recipes) await saveRecipes(parsed.recipes);
-  if (parsed.settings) await saveSettings({ ...(await loadSettings()), ...parsed.settings });
+  if (parsed.recipes && Array.isArray(parsed.recipes.recipes)) await saveRecipes(parsed.recipes);
+  if (parsed.settings && typeof parsed.settings === 'object') await saveSettings({ ...(await loadSettings()), ...parsed.settings });
 
-  return { receipts: parsed.receipts.length, favorites: newFavs.length, shopping: newShopping.length };
+  return { receipts: incoming.length, favorites: newFavs.length, shopping: newShopping.length };
 }
 
 /** Lets the person pick a backup file; resolves to its text, or null when they cancel. */

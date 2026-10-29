@@ -41,8 +41,12 @@ export default function RootLayout() {
       .catch(() => {})
       .then(() => setReady(true));
     prepareReminders().then(syncReminders);
-    return onReminderTap(() => router.navigate('/recipes'));
   }, []);
+  // Only once the navigator is mounted can a reminder tap (also the one that started the app) open Recipes.
+  useEffect(() => {
+    if (!ready) return;
+    return onReminderTap(() => router.navigate('/recipes'));
+  }, [ready]);
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);

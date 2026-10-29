@@ -9,7 +9,7 @@ import type { PreparedImage } from './image';
  * it. Outside such a page (Expo Go, a normal browser tab) this resolves null.
  */
 export type ViewerClaude = {
-  json(input: string, options?: { images?: Blob[]; cache?: boolean; modelTier?: string }): Promise<unknown>;
+  json(input: string, options?: { images?: Blob[]; cache?: boolean; modelTier?: string; signal?: AbortSignal }): Promise<unknown>;
   limits(): Promise<{ images?: { maxCount: number } }>;
 };
 

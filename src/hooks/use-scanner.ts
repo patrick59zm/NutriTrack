@@ -41,6 +41,7 @@ export function useScanner({ replaceId, onDone }: { replaceId?: string; onDone: 
         const [imageSets, settings] = await Promise.all([Promise.all(photos.map(prepareReceiptImages)), loadSettings()]);
         if (abort.signal.aborted) return;
         const fresh = await analyzeReceipt(imageSets.flat(), settings, { signal: abort.signal, onPhase: setPhase });
+        if (abort.signal.aborted) return;
         const id = replaceId ?? fresh.id;
         const twin = findDuplicate({ ...fresh, id }, await loadReceipts());
         if (twin) fresh.duplicateOf = twin.id;
@@ -48,7 +49,7 @@ export function useScanner({ replaceId, onDone }: { replaceId?: string; onDone: 
         let saved: Receipt | null;
         if (replaceId) {
           saved = await updateReceipt(replaceId, (old) => {
-            if (old.photoUri && old.photoUri !== photoUri) deleteReceiptPhoto(old.photoUri);
+            if (photoUri && old.photoUri && old.photoUri !== photoUri) deleteReceiptPhoto(old.photoUri);
             return { ...fresh, id: old.id, scannedAt: old.scannedAt, photoUri: photoUri ?? old.photoUri };
           });
           if (!saved) throw new Error('This receipt no longer exists.');

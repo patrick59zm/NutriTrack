@@ -36,13 +36,17 @@ const receipt = (id: string, store: string | null, total: number | null, items: 
 });
 
 test('buildCsv writes one row per item, quotes what needs quoting and starts with a byte-order mark', () => {
-  const csv = buildCsv([receipt('r1', 'Coop', 12.5, [item('Milk, whole', 'dairy', 1.95), item('Bag "big"', 'non_food', 0.1)])]);
+  const csv = buildCsv([
+    receipt('r1', 'Coop', 12.5, [item('Milk, whole', 'dairy', 1.95), item('Bag "big"', 'non_food', 0.1), item('=SUM(A1)', 'other_food', -0.5)]),
+  ]);
   const lines = csv.split('\r\n');
   assert.ok(lines[0].startsWith('﻿date,store,currency,receipt_total,item,'));
-  assert.equal(lines.length, 3);
+  assert.equal(lines.length, 4);
   assert.ok(lines[1].startsWith('2026-10-28,Coop,CHF,12.5,"Milk, whole",'));
   assert.ok(lines[2].includes('"Bag ""big"""'));
   assert.ok(lines[2].endsWith(',false'));
+  assert.ok(lines[3].includes(",'=SUM(A1),'=SUM(A1),"), 'formula triggers are neutralized in text cells');
+  assert.ok(lines[3].includes(',-0.5,'), 'negative numbers stay numbers');
 });
 
 test('spending by category ignores discount lines and sorts by amount; stores sum their totals', () => {

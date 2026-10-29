@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { BasketCheck } from '@/components/basket-check';
@@ -14,7 +14,7 @@ import { ReceiptDetailsEditor, type ReceiptDetails } from '@/components/receipt-
 import { StoreAvatar } from '@/components/receipt-row';
 import { ScanningOverlay } from '@/components/scanning-overlay';
 import { ThemedText } from '@/components/themed-text';
-import { Banner, Button, Card, Divider, IconCircle, Screen, SectionHeader, TextLink } from '@/components/ui';
+import { Banner, Button, Card, ConfirmSheet, Divider, IconCircle, Screen, SectionHeader, TextLink } from '@/components/ui';
 import { Fonts, MacroColors, Radius, Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useScanner } from '@/hooks/use-scanner';
@@ -46,6 +46,7 @@ export default function ReceiptScreen() {
   const [editing, setEditing] = useState<Editing>(null);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [rescanOpen, setRescanOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const theme = useTheme();
   const t = useT();
 
@@ -85,20 +86,11 @@ export default function ReceiptScreen() {
   const cost = receipt.usage;
   const metrics = basketMetrics(receipt.totals, receipt.items);
 
-  function confirmDelete() {
-    const run = async () => {
-      await deleteReceipt(id);
-      syncReminders();
-      router.back();
-    };
-    if (Platform.OS === 'web') {
-      run();
-      return;
-    }
-    Alert.alert(t('receipt.deleteTitle'), t('receipt.deleteMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.delete'), style: 'destructive', onPress: run },
-    ]);
+  const confirmDelete = () => setConfirmingDelete(true);
+  async function deleteThis() {
+    await deleteReceipt(id);
+    syncReminders();
+    router.back();
   }
 
   const saveItem = (item: ReceiptItem) => {
@@ -152,6 +144,14 @@ export default function ReceiptScreen() {
     <Screen topInset={false}>
       <ScanningOverlay visible={scanner.busy} imageUri={scanner.preview} phase={scanner.phase} onCancel={scanner.cancel} />
       <PhotoViewer uri={viewPhoto} onClose={() => setViewPhoto(null)} />
+      <ConfirmSheet
+        visible={confirmingDelete}
+        title={t('receipt.deleteTitle')}
+        message={t('receipt.deleteMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={deleteThis}
+        onClose={() => setConfirmingDelete(false)}
+      />
       {editing?.kind === 'details' && (
         <ReceiptDetailsEditor receipt={receipt} onSave={saveDetails} onClose={() => setEditing(null)} />
       )}

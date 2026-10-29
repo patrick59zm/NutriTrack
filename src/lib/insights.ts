@@ -1,5 +1,5 @@
 import { locale, t } from './i18n';
-import { daysSince, sum } from './nutrition';
+import { daysSince, receiptSpend, sum } from './nutrition';
 import type { Nutrition, Receipt, ReceiptItem } from './types';
 
 /**
@@ -142,7 +142,7 @@ export function spendingByStore(receipts: Receipt[]) {
   const by = new Map<string, { store: string | null; amount: number; receipts: number }>();
   for (const r of receipts) {
     const key = (r.store ?? '').trim().toLowerCase();
-    const amount = r.totalPrice ?? r.items.reduce((a, i) => a + (i.price ?? 0), 0);
+    const amount = receiptSpend(r);
     const entry = by.get(key) ?? { store: r.store, amount: 0, receipts: 0 };
     entry.amount += amount;
     entry.receipts += 1;
@@ -189,7 +189,7 @@ export function weeklySeries(receipts: Receipt[], weeks = 8, now = new Date()): 
       start: start.toISOString(),
       label: start.toLocaleDateString(locale(), { day: 'numeric', month: 'short' }),
       kcal: inWeek.reduce((a, r) => a + r.totals.kcal, 0),
-      spent: inWeek.reduce((a, r) => a + (r.totalPrice ?? 0), 0),
+      spent: inWeek.reduce((a, r) => a + receiptSpend(r), 0),
       receipts: inWeek.length,
       nutrition: sum(inWeek.map((r) => r.totals)),
     });

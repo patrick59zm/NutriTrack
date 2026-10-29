@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import { useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Banner, Button, Card, Chip, Divider, IconCircle, Screen, Stepper, SwitchRow, type IconName } from '@/components/ui';
+import { Banner, Button, Card, Chip, ConfirmSheet, Divider, IconCircle, Screen, Stepper, SwitchRow, type IconName } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
@@ -67,6 +67,7 @@ export default function SettingsScreen() {
   // Local draft while typing; falls back to the stored value.
   const [dietDraft, setDiet] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const { apiKey, settings, usage, upcoming } = data;
   const diet = dietDraft ?? settings.diet;
 
@@ -152,19 +153,11 @@ export default function SettingsScreen() {
     }
   }
 
-  function confirmClear() {
-    const run = async () => {
-      await clearAllData();
-      setToast(t('settings.allDeleted'));
-    };
-    if (Platform.OS === 'web') {
-      run();
-      return;
-    }
-    Alert.alert(t('settings.deleteAllTitle'), t('settings.deleteAllMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.delete'), style: 'destructive', onPress: run },
-    ]);
+  const confirmClear = () => setConfirmingClear(true);
+  async function clearEverything() {
+    await clearAllData();
+    reload();
+    setToast(t('settings.allDeleted'));
   }
 
   const activeDiet = diet.toLowerCase();
@@ -172,6 +165,14 @@ export default function SettingsScreen() {
   return (
     <Screen title={t('settings.title')}>
       <Banner tone="brand" message={toast} onDismiss={() => setToast(null)} />
+      <ConfirmSheet
+        visible={confirmingClear}
+        title={t('settings.deleteAllTitle')}
+        message={t('settings.deleteAllMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={clearEverything}
+        onClose={() => setConfirmingClear(false)}
+      />
 
       <Group title={t('settings.claude')}>
         <Card>

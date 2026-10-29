@@ -64,14 +64,17 @@ export default function RecipeScreen() {
   const [done, setDone] = useState<Set<number>>(new Set());
   const [cooking, setCooking] = useState<{ chosen: Set<string> } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Opened from the saved list, the recipe stays on screen after it is unsaved (its index would shift).
+  const [pinned, setPinned] = useState<Recipe | null>(null);
 
   const { batch, favorites, receipts, settings } = data;
-  const recipe: Recipe | undefined = source === 'saved' ? favorites[i]?.recipe : batch?.recipes[i];
+  const recipe: Recipe | undefined = pinned ?? (source === 'saved' ? favorites[i]?.recipe : batch?.recipes[i]);
   const saved = !!recipe && favorites.some((f) => recipeKey(f.recipe) === recipeKey(recipe));
 
   const onToggleFavorite = useCallback(async () => {
     if (!recipe) return;
     tap();
+    if (source === 'saved') setPinned(recipe);
     const nowSaved = await toggleFavorite(recipe);
     setData((d) => ({
       ...d,
@@ -80,7 +83,7 @@ export default function RecipeScreen() {
         : d.favorites.filter((f) => recipeKey(f.recipe) !== recipeKey(recipe)),
     }));
     setToast(nowSaved ? t('recipe.saved') : t('recipe.unsaved'));
-  }, [recipe, setData, t]);
+  }, [recipe, source, setData, t]);
 
   if (!loaded) return null;
   if (!recipe) {

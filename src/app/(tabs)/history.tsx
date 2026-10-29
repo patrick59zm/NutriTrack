@@ -14,7 +14,7 @@ import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { t, useT } from '@/lib/i18n';
 import { searchReceipts, weeklySeries } from '@/lib/insights';
-import { daysSince, fmt, money, receiptsWithin, sum } from '@/lib/nutrition';
+import { daysSince, fmt, money, receiptSpend, receiptsWithin, sum } from '@/lib/nutrition';
 import { loadDemoData, loadReceipts, loadSettings } from '@/lib/storage';
 import { DEFAULT_SETTINGS, type Receipt } from '@/lib/types';
 
@@ -45,7 +45,7 @@ export default function HistoryScreen() {
 
   const month = receiptsWithin(receipts, 30);
   const monthTotals = sum(month.map((r) => r.totals));
-  const monthSpent = month.reduce((a, r) => a + (r.totalPrice ?? 0), 0);
+  const monthSpent = month.reduce((a, r) => a + receiptSpend(r), 0);
   const weeks = weeklySeries(receipts, 8);
   const shown = searchReceipts(receipts, query);
   const perPersonDay = monthTotals.kcal / 30 / Math.max(1, settings.householdSize);

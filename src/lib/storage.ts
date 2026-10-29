@@ -243,9 +243,17 @@ export async function loadDemoData() {
   await saveRecipes(demoRecipes());
 }
 
+/** Removes receipts, recipe ideas, saved recipes, the shopping list, cooked meals and the usage counter; settings and the key stay. */
 export async function clearAllData() {
   for (const r of await loadReceipts()) await deleteReceiptPhoto(r.photoUri);
-  await Promise.all([saveReceipts([]), kv.remove(RECIPES_KEY), kv.remove(COOKED_KEY)]);
+  await Promise.all([
+    saveReceipts([]),
+    kv.remove(RECIPES_KEY),
+    kv.remove(COOKED_KEY),
+    kv.remove(FAVORITES_KEY),
+    kv.remove(SHOPPING_KEY),
+    kv.remove(USAGE_KEY),
+  ]);
 }
 
 // SecureStore is native-only; on web the key falls back to browser storage.

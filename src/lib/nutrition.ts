@@ -66,6 +66,11 @@ export function priceCheck(items: { price: number | null }[], total: number | nu
   return { sum, total, gap, ok };
 }
 
+/** What a receipt cost: the printed total, or the sum of its lines when none was read. */
+export function receiptSpend(receipt: Pick<Receipt, 'totalPrice' | 'items'>) {
+  return receipt.totalPrice ?? receipt.items.reduce((a, i) => a + (i.price ?? 0), 0);
+}
+
 /** The warning shown on a receipt whose item prices do not add up to the printed total. */
 export function priceWarnings(items: { price: number | null }[], total: number | null): string[] {
   const check = priceCheck(items, total);

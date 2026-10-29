@@ -27,7 +27,9 @@ const CSV_COLUMNS = [
 ];
 
 const csvCell = (value: unknown) => {
-  const text = value == null ? '' : typeof value === 'number' ? String(Math.round(value * 100) / 100) : String(value);
+  let text = value == null ? '' : typeof value === 'number' ? String(Math.round(value * 100) / 100) : String(value);
+  // Spreadsheets evaluate text starting with =, +, - or @ as a formula; a leading quote keeps it text.
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 

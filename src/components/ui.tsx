@@ -426,6 +426,43 @@ export function Sheet({
   );
 }
 
+/** Asks before something is deleted; the same sheet on every platform. */
+export function ConfirmSheet({
+  visible,
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  if (!visible) return null;
+  return (
+    <Sheet visible title={title} onClose={onClose}>
+      <ThemedText variant="body" color="textSecondary">
+        {message}
+      </ThemedText>
+      <Button
+        title={confirmLabel}
+        icon="trash-outline"
+        variant="danger"
+        onPress={() => {
+          onClose();
+          onConfirm();
+        }}
+      />
+      <Button title={t('common.cancel')} variant="secondary" onPress={onClose} />
+    </Sheet>
+  );
+}
+
 /** A labelled text input in the app's style. */
 export function Field({
   label,
