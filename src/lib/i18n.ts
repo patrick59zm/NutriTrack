@@ -334,6 +334,8 @@ const en = {
   'scan.checking': 'Double-checking the prices…',
   'scan.checkingNote': 'The prices did not add up to the total, so Claude is reading the receipt a second time.',
   'scan.note': 'Claude is reading every line. This usually takes 20–60 seconds.',
+  'scan.cameraTitle': 'Camera access needed',
+  'scan.cameraMessage': 'Allow camera access in Settings to photograph receipts.',
 
   // Basket check
   'basket.good': 'Good',
@@ -445,6 +447,42 @@ const en = {
   'viewer.refused': 'Claude declined this request. Try another photo.',
   'viewer.unreadable': 'Claude’s answer could not be read. Please try again.',
   'viewer.unreachable': 'Could not reach Claude. Please try again.',
+
+  // Receipt details
+  'details.title': 'Receipt details',
+  'details.a11y': 'Edit receipt details',
+  'details.store': 'Store',
+  'details.date': 'Purchase date',
+  'details.dateHint': 'YYYY-MM-DD · freshness counts from this day',
+  'details.total': 'Printed total',
+  'details.save': 'Save details',
+  'details.invalidDate': 'Enter the date as YYYY-MM-DD.',
+
+  // Several photos
+  'multi.link': 'Long receipt? Scan it in several photos',
+  'multi.title': 'Several photos',
+  'multi.hint': 'Photograph the receipt in parts from top to bottom; the parts may overlap a little. Up to {n} photos.',
+  'multi.addPhoto': 'Add photo',
+  'multi.removePhoto': 'Remove photo {n}',
+  'multi.scan': { one: 'Scan 1 photo', other: 'Scan {n} photos' },
+  'multi.photos': { one: '{n} photo', other: '{n} photos' },
+
+  // Spending
+  'spending.title': 'Where the money goes',
+  'spending.byStore': 'By store',
+  'spending.total': '{amount} in 30 days',
+
+  // CSV
+  'settings.csv': 'Export items as CSV',
+  'settings.csvDetail': 'Every item with its price and nutrition, for spreadsheets',
+  'settings.csvDownloaded': 'CSV downloaded.',
+
+  // Scan tips
+  'tips.link': 'Tips for a good scan',
+  'tips.flat': 'Lay the receipt flat and fill the frame with it.',
+  'tips.light': 'Daylight or a bright lamp, with no shadow across the print.',
+  'tips.straight': 'Hold the camera straight above it; long receipts can go in several photos.',
+  'tips.check': 'Check the item list afterwards and tap an item to correct it.',
 } satisfies Record<string, Entry>;
 
 export type Key = keyof typeof en;
@@ -771,6 +809,8 @@ const de: Record<Key, Entry> = {
   'scan.checking': 'Preise werden nochmals geprüft…',
   'scan.checkingNote': 'Die Preise ergaben nicht die Summe, darum liest Claude den Kassenzettel ein zweites Mal.',
   'scan.note': 'Claude liest jede Zeile. Das dauert meist 20–60 Sekunden.',
+  'scan.cameraTitle': 'Kamerazugriff nötig',
+  'scan.cameraMessage': 'Erlaube den Kamerazugriff in den Einstellungen, um Kassenzettel zu fotografieren.',
 
   'basket.good': 'Gut',
   'basket.watch': 'Knapp',
@@ -875,6 +915,37 @@ const de: Record<Key, Entry> = {
   'viewer.refused': 'Claude hat diese Anfrage abgelehnt. Versuche ein anderes Foto.',
   'viewer.unreadable': 'Claudes Antwort konnte nicht gelesen werden. Bitte versuche es nochmals.',
   'viewer.unreachable': 'Claude war nicht erreichbar. Bitte versuche es nochmals.',
+
+  'details.title': 'Details zum Kassenzettel',
+  'details.a11y': 'Details zum Kassenzettel bearbeiten',
+  'details.store': 'Laden',
+  'details.date': 'Kaufdatum',
+  'details.dateHint': 'JJJJ-MM-TT · die Haltbarkeit zählt ab diesem Tag',
+  'details.total': 'Gedruckte Summe',
+  'details.save': 'Details speichern',
+  'details.invalidDate': 'Gib das Datum als JJJJ-MM-TT ein.',
+
+  'multi.link': 'Langer Kassenzettel? In mehreren Fotos scannen',
+  'multi.title': 'Mehrere Fotos',
+  'multi.hint': 'Fotografiere den Kassenzettel abschnittweise von oben nach unten; die Teile dürfen sich etwas überlappen. Bis zu {n} Fotos.',
+  'multi.addPhoto': 'Foto hinzufügen',
+  'multi.removePhoto': 'Foto {n} entfernen',
+  'multi.scan': { one: 'Mit 1 Foto scannen', other: 'Mit {n} Fotos scannen' },
+  'multi.photos': { one: '{n} Foto', other: '{n} Fotos' },
+
+  'spending.title': 'Wohin das Geld geht',
+  'spending.byStore': 'Nach Laden',
+  'spending.total': '{amount} in 30 Tagen',
+
+  'settings.csv': 'Artikel als CSV exportieren',
+  'settings.csvDetail': 'Jeder Artikel mit Preis und Nährwerten, für Tabellen',
+  'settings.csvDownloaded': 'CSV heruntergeladen.',
+
+  'tips.link': 'Tipps für einen guten Scan',
+  'tips.flat': 'Lege den Kassenzettel flach hin und fülle den Bildausschnitt damit.',
+  'tips.light': 'Tageslicht oder eine helle Lampe, ohne Schatten über dem Druck.',
+  'tips.straight': 'Halte die Kamera gerade darüber; lange Kassenzettel passen in mehrere Fotos.',
+  'tips.check': 'Prüfe danach die Artikelliste und tippe auf einen Artikel, um ihn zu korrigieren.',
 };
 
 const dictionaries: Record<Language, Record<Key, Entry>> = { en, de };

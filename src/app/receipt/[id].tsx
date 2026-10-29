@@ -10,6 +10,7 @@ import { ImageFileInput } from '@/components/image-file-input';
 import { ItemEditor } from '@/components/item-editor';
 import { CategoryBreakdown, MacroBar, NutritionPanel } from '@/components/nutrition-summary';
 import { PhotoViewer } from '@/components/photo-viewer';
+import { ReceiptDetailsEditor, type ReceiptDetails } from '@/components/receipt-details-editor';
 import { StoreAvatar } from '@/components/receipt-row';
 import { ScanningOverlay } from '@/components/scanning-overlay';
 import { ThemedText } from '@/components/themed-text';
@@ -22,12 +23,12 @@ import { itemEmoji } from '@/lib/categories';
 import { tap } from '@/lib/haptics';
 import { locale, useT, type Key } from '@/lib/i18n';
 import { basketMetrics } from '@/lib/insights';
-import { fmt, money, priceCheck, recomputeReceipt } from '@/lib/nutrition';
+import { fmt, money, priceCheck, priceWarnings, recomputeReceipt } from '@/lib/nutrition';
 import { syncReminders } from '@/lib/reminders';
 import { deleteReceipt, getReceipt, loadSettings, updateReceipt } from '@/lib/storage';
 import { DEFAULT_SETTINGS, type Nutrition, type Receipt, type ReceiptItem } from '@/lib/types';
 
-type Editing = { kind: 'edit'; item: ReceiptItem } | { kind: 'add' } | null;
+type Editing = { kind: 'edit'; item: ReceiptItem } | { kind: 'add' } | { kind: 'details' } | null;
 
 export default function ReceiptScreen() {
   const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
@@ -111,6 +112,10 @@ export default function ReceiptScreen() {
     apply((r) => ({ ...r, items: r.items.filter((i) => i.id !== itemId), warnings: undefined }));
     setEditing(null);
   };
+  const saveDetails = (details: ReceiptDetails) => {
+    apply((r) => ({ ...r, ...details, warnings: priceWarnings(r.items, details.totalPrice) }));
+    setEditing(null);
+  };
   const toggleFood = (item: ReceiptItem) =>
     apply((r) => ({
       ...r,
@@ -142,7 +147,10 @@ export default function ReceiptScreen() {
     <Screen topInset={false}>
       <ScanningOverlay visible={scanner.busy} imageUri={scanner.preview} phase={scanner.phase} onCancel={scanner.cancel} />
       <PhotoViewer uri={viewPhoto} onClose={() => setViewPhoto(null)} />
-      {editing && (
+      {editing?.kind === 'details' && (
+        <ReceiptDetailsEditor receipt={receipt} onSave={saveDetails} onClose={() => setEditing(null)} />
+      )}
+      {editing && editing.kind !== 'details' && (
         <ItemEditor
           key={editing.kind === 'edit' ? editing.item.id : 'add'}
           item={editing.kind === 'edit' ? editing.item : null}
@@ -165,12 +173,18 @@ export default function ReceiptScreen() {
         ) : (
           <StoreAvatar store={receipt.store} size={60} />
         )}
-        <View style={styles.flex}>
+        <Pressable
+          onPress={() => setEditing({ kind: 'details' })}
+          accessibilityRole="button"
+          accessibilityLabel={t('details.a11y')}
+          style={styles.flex}>
           <ThemedText variant="title">{receipt.store ?? t('common.receipt')}</ThemedText>
           <ThemedText variant="caption" color="textSecondary">
             {date.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}
+            {'  '}
+            <Ionicons name="create-outline" size={13} color={theme.textTertiary} />
           </ThemedText>
-        </View>
+        </Pressable>
         {receipt.totalPrice != null && (
           <View style={styles.price}>
             <ThemedText variant="headline">{money(receipt.totalPrice, receipt.currency, settings.currency)}</ThemedText>

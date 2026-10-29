@@ -7,18 +7,33 @@ import { View } from 'react-native';
  * web) is often ignored. So an invisible input covers the button and takes the tap.
  * `accept="image/*"` lets phones offer the camera as well as the photo library.
  */
-export function ImageFileInput({ onPick, children }: { onPick: (uri: string) => void; children: ReactNode }) {
+export function ImageFileInput({
+  onPick,
+  onPickMany,
+  multiple,
+  children,
+}: {
+  onPick?: (uri: string) => void;
+  /** With `multiple`, every chosen file at once. */
+  onPickMany?: (uris: string[]) => void;
+  multiple?: boolean;
+  children: ReactNode;
+}) {
   return (
     <View style={{ position: 'relative' }}>
       {children}
       <input
         type="file"
         accept="image/*"
+        multiple={multiple}
         aria-label="Upload a receipt photo"
         onChange={(e) => {
-          const file = e.currentTarget.files?.[0];
+          const files = Array.from(e.currentTarget.files ?? []);
           e.currentTarget.value = ''; // picking the same photo again still fires change
-          if (file) onPick(URL.createObjectURL(file));
+          if (files.length === 0) return;
+          const uris = files.map((file) => URL.createObjectURL(file));
+          if (multiple && onPickMany) onPickMany(uris);
+          else onPick?.(uris[0]);
         }}
         style={{
           position: 'absolute',

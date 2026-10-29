@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ReceiptRow } from '@/components/receipt-row';
+import { SpendingBreakdown } from '@/components/spending';
 import { ThemedText } from '@/components/themed-text';
 import { TrendsChart } from '@/components/trends-chart';
 import { Button, Card, EmptyState, Screen, StatTile } from '@/components/ui';
@@ -82,6 +83,18 @@ export default function HistoryScreen() {
               <StatTile label={t('history.perPerson')} value={fmt(perPersonDay)} unit={t('history.perDayUnit')} icon="person-outline" />
               <StatTile label={t('home.spent')} value={money(monthSpent, settings.currency)} icon="wallet-outline" />
             </View>
+          </Card>
+        </Animated.View>
+      )}
+
+      {monthSpent > 0 && (
+        <Animated.View entering={FadeInDown.duration(400).delay(40)}>
+          <Card>
+            <ThemedText variant="headline">{t('spending.title')}</ThemedText>
+            <ThemedText variant="caption" color="textSecondary">
+              {t('spending.total', { amount: money(monthSpent, settings.currency) })}
+            </ThemedText>
+            <SpendingBreakdown receipts={month} currency={settings.currency} />
           </Card>
         </Animated.View>
       )}

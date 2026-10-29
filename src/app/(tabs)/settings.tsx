@@ -9,7 +9,7 @@ import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { DEMO_MODE } from '@/lib/config';
 import { success, tap } from '@/lib/haptics';
-import { exportBackup, importBackup, pickBackupFile } from '@/lib/backup';
+import { exportBackup, exportCsv, importBackup, pickBackupFile } from '@/lib/backup';
 import { everyLanguage, locale, useT, type Key } from '@/lib/i18n';
 import { fmt } from '@/lib/nutrition';
 import { reminderPlan, requestReminderPermission, syncReminders } from '@/lib/reminders';
@@ -117,6 +117,15 @@ export default function SettingsScreen() {
     try {
       const how = await exportBackup();
       setToast(how === 'downloaded' ? t('settings.backupDownloaded') : t('settings.backupReady'));
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : t('settings.exportFailed'));
+    }
+  }
+
+  async function doCsv() {
+    try {
+      const how = await exportCsv();
+      setToast(how === 'downloaded' ? t('settings.csvDownloaded') : t('settings.backupReady'));
     } catch (e) {
       setToast(e instanceof Error ? e.message : t('settings.exportFailed'));
     }
@@ -351,6 +360,8 @@ export default function SettingsScreen() {
           <SettingsRow icon="download-outline" label={t('settings.export')} detail={t('settings.exportDetail')} onPress={doExport} />
           <Divider />
           <SettingsRow icon="cloud-upload-outline" label={t('settings.import')} detail={t('settings.importDetail')} onPress={doImport} />
+          <Divider />
+          <SettingsRow icon="grid-outline" label={t('settings.csv')} detail={t('settings.csvDetail')} onPress={doCsv} />
           <Divider />
           <SettingsRow
             icon="sparkles"

@@ -66,6 +66,20 @@ export function priceCheck(items: { price: number | null }[], total: number | nu
   return { sum, total, gap, ok };
 }
 
+/** The warning shown on a receipt whose item prices do not add up to the printed total. */
+export function priceWarnings(items: { price: number | null }[], total: number | null): string[] {
+  const check = priceCheck(items, total);
+  if (check.ok) return [];
+  return [
+    t('error.priceGap', {
+      sum: check.sum.toFixed(2),
+      gap: Math.abs(check.gap).toFixed(2),
+      direction: t(check.gap > 0 ? 'error.more' : 'error.less'),
+      total: check.total?.toFixed(2) ?? '?',
+    }),
+  ];
+}
+
 /** Share of energy from protein / carbs / fat (4 / 4 / 9 kcal per gram). */
 export function macroSplit(n: Nutrition) {
   const p = n.protein_g * 4;

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { buildCsv } from './csv';
 import { t } from './i18n';
 import { ensureItemIds } from './nutrition';
 import {
@@ -69,18 +70,15 @@ async function viewerDownloads(): Promise<{ save(file: { filename: string; data:
   }
 }
 
-/** Writes the backup and hands it to the share sheet (native) or the browser's download. */
-export async function exportBackup(): Promise<'shared' | 'downloaded'> {
-  const backup = await buildBackup();
-  const json = JSON.stringify(backup, null, 1);
-  const name = `nutritrack-backup-${backup.exportedAt.slice(0, 10)}.json`;
+/** Hands a text file to the share sheet (native) or the browser's download. */
+async function deliverFile(name: string, text: string, mimeType: string): Promise<'shared' | 'downloaded'> {
   if (Platform.OS === 'web') {
     const downloads = await viewerDownloads();
     if (downloads) {
-      await downloads.save({ filename: name, data: json });
+      await downloads.save({ filename: name, data: text });
       return 'downloaded';
     }
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([text], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -96,9 +94,22 @@ export async function exportBackup(): Promise<'shared' | 'downloaded'> {
   const file = new File(Paths.cache, name);
   if (file.exists) file.delete();
   file.create();
-  file.write(json);
-  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: t('backup.shareTitle') });
+  file.write(text);
+  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: t('backup.shareTitle') });
   return 'shared';
+}
+
+/** Writes the backup and hands it to the share sheet (native) or the browser's download. */
+export async function exportBackup(): Promise<'shared' | 'downloaded'> {
+  const backup = await buildBackup();
+  const name = `nutritrack-backup-${backup.exportedAt.slice(0, 10)}.json`;
+  return deliverFile(name, JSON.stringify(backup, null, 1), 'application/json');
+}
+
+export async function exportCsv(): Promise<'shared' | 'downloaded'> {
+  const receipts = await loadReceipts();
+  const name = `nutritrack-items-${new Date().toISOString().slice(0, 10)}.csv`;
+  return deliverFile(name, buildCsv(receipts), 'text/csv');
 }
 
 function isBackup(value: unknown): value is Backup {

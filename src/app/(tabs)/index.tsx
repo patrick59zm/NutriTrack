@@ -1,10 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { BasketCheck } from '@/components/basket-check';
 import { ImageFileInput } from '@/components/image-file-input';
+import { MultiPhotoSheet } from '@/components/multi-photo-sheet';
 import { NutritionPanel } from '@/components/nutrition-summary';
 import { PantryStrip } from '@/components/pantry';
 import { ReceiptRow } from '@/components/receipt-row';
@@ -72,6 +74,8 @@ export default function TodayScreen() {
   const scanner = useScanner({
     onDone: (receipt) => router.push({ pathname: '/receipt/[id]', params: { id: receipt.id, fresh: '1' } }),
   });
+  const [multi, setMulti] = useState(false);
+  const [tips, setTips] = useState(false);
 
   const { receipts, recipes, hasKey, settings, toBuy } = data;
   const recent = receiptsWithin(receipts, SUMMARY_DAYS);
@@ -95,6 +99,9 @@ export default function TodayScreen() {
   return (
     <Screen overline={today} title={greeting()}>
       <ScanningOverlay visible={scanner.busy} imageUri={scanner.preview} phase={scanner.phase} onCancel={scanner.cancel} />
+      {multi && (
+        <MultiPhotoSheet isWeb={scanner.isWeb} onPickUri={scanner.pickUri} onScan={scanner.analyzePhotos} onClose={() => setMulti(false)} />
+      )}
 
       <Animated.View entering={enter()}>
         <LinearGradient colors={HeroGradient[scheme]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
@@ -124,6 +131,24 @@ export default function TodayScreen() {
             </View>
           </View>
         </LinearGradient>
+        <View style={styles.heroLinks}>
+          <TextLink title={t('multi.link')} onPress={() => setMulti(true)} />
+          <TextLink title={t('tips.link')} onPress={() => setTips((s) => !s)} />
+        </View>
+        {tips && (
+          <Card style={styles.tips}>
+            {(['tips.flat', 'tips.light', 'tips.straight', 'tips.check'] as const).map((key) => (
+              <View key={key} style={styles.tip}>
+                <ThemedText variant="caption" color="brandStrong">
+                  •
+                </ThemedText>
+                <ThemedText variant="caption" color="textSecondary" style={styles.flex}>
+                  {t(key)}
+                </ThemedText>
+              </View>
+            ))}
+          </Card>
+        )}
       </Animated.View>
 
       <Banner message={scanner.error} onDismiss={scanner.clearError} />
@@ -289,6 +314,9 @@ const styles = StyleSheet.create({
   heroText: { gap: Spacing.one, paddingRight: Spacing.eight },
   heroSub: { color: 'rgba(255,255,255,0.82)' },
   heroButtons: { flexDirection: 'row', gap: Spacing.two },
+  heroLinks: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: Spacing.two, paddingTop: Spacing.three, paddingHorizontal: Spacing.one },
+  tips: { marginTop: Spacing.three, gap: Spacing.two },
+  tip: { flexDirection: 'row', gap: Spacing.two },
   keyCard: { flexDirection: 'row', alignItems: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
   perPerson: {

@@ -127,6 +127,31 @@ export function metricSummary(metrics: BasketMetric[]) {
 }
 
 // ---------------------------------------------------------------------------
+// Spending
+
+/** Money per product category, from priced lines (discount lines are left out). */
+export function spendingByCategory(receipts: Receipt[]) {
+  const by = new Map<string, number>();
+  for (const r of receipts)
+    for (const i of r.items) if (i.price != null && i.price > 0) by.set(i.category, (by.get(i.category) ?? 0) + i.price);
+  return [...by.entries()].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
+}
+
+/** Money per store, from the printed totals (or the lines when none was read). */
+export function spendingByStore(receipts: Receipt[]) {
+  const by = new Map<string, { store: string | null; amount: number; receipts: number }>();
+  for (const r of receipts) {
+    const key = (r.store ?? '').trim().toLowerCase();
+    const amount = r.totalPrice ?? r.items.reduce((a, i) => a + (i.price ?? 0), 0);
+    const entry = by.get(key) ?? { store: r.store, amount: 0, receipts: 0 };
+    entry.amount += amount;
+    entry.receipts += 1;
+    by.set(key, entry);
+  }
+  return [...by.values()].sort((a, b) => b.amount - a.amount);
+}
+
+// ---------------------------------------------------------------------------
 // Weekly trends
 
 export type WeekPoint = {

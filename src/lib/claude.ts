@@ -4,7 +4,7 @@ import { DEMO_MODE } from './config';
 import { demoRecipesFor, demoScanAnalysis } from './demo';
 import { t } from './i18n';
 import type { PreparedImage } from './image';
-import { daysSince, newId, normalizeCurrency, priceCheck, withTotals, sum } from './nutrition';
+import { daysSince, newId, normalizeCurrency, priceCheck, priceWarnings, withTotals, sum } from './nutrition';
 import { jsonInstruction, parseLenient, parseLocalDate } from './parse';
 import { getApiKey, recordUsage } from './storage';
 import {
@@ -138,7 +138,7 @@ export async function analyzeReceipt(
   // Guard against misread dates (future or implausibly old).
   const age = purchased && !isNaN(purchased.getTime()) ? daysSince(purchased.toISOString(), now) : -1;
   const validDate = age >= 0 && age < 365;
-  const warnings = scanWarnings(analysis);
+  const warnings = priceWarnings(analysis.items, analysis.total_price);
 
   return {
     id,
@@ -154,19 +154,6 @@ export async function analyzeReceipt(
     ...(usage && { usage }),
     ...(sampleReason && { sampleReason }),
   };
-}
-
-function scanWarnings(analysis: ReceiptAnalysis) {
-  const check = priceCheck(analysis.items, analysis.total_price);
-  if (check.ok) return [];
-  return [
-    t('error.priceGap', {
-      sum: check.sum.toFixed(2),
-      gap: Math.abs(check.gap).toFixed(2),
-      direction: t(check.gap > 0 ? 'error.more' : 'error.less'),
-      total: check.total?.toFixed(2) ?? '?',
-    }),
-  ];
 }
 
 async function requestAnalysis(
