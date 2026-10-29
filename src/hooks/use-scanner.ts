@@ -6,6 +6,7 @@ import { analyzeReceipt, describeError, isCancelled, type ScanPhase } from '@/li
 import { failure, success } from '@/lib/haptics';
 import { prepareReceiptImages } from '@/lib/image';
 import { deleteReceiptPhoto, saveReceiptPhoto } from '@/lib/photos';
+import { syncReminders } from '@/lib/reminders';
 import { loadSettings, saveReceipt, updateReceipt } from '@/lib/storage';
 import type { Receipt } from '@/lib/types';
 
@@ -46,6 +47,7 @@ export function useScanner({ replaceId, onDone }: { replaceId?: string; onDone: 
           await saveReceipt(saved);
         }
         success();
+        syncReminders();
         onDone(saved);
       } catch (e) {
         if (!isCancelled(e)) {

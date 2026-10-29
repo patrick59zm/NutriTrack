@@ -141,6 +141,10 @@ export function recipeKey(recipe: Recipe) {
   return recipe.title.trim().toLowerCase();
 }
 
+export async function saveFavorites(list: SavedRecipe[]) {
+  await kv.set(FAVORITES_KEY, JSON.stringify(list));
+}
+
 export async function toggleFavorite(recipe: Recipe): Promise<boolean> {
   const list = await loadFavorites();
   const key = recipeKey(recipe);
@@ -184,6 +188,10 @@ export async function addToShopping(texts: string[], from?: string): Promise<num
 
 export async function loadCooked(): Promise<CookedMeal[]> {
   return readJson<CookedMeal[]>(COOKED_KEY, []);
+}
+
+export async function saveCooked(list: CookedMeal[]) {
+  await kv.set(COOKED_KEY, JSON.stringify(list));
 }
 
 export async function recordCooked(recipe: Recipe) {

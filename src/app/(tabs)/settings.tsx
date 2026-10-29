@@ -3,17 +3,20 @@ import { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Banner, Button, Card, Chip, Divider, IconCircle, Screen, Stepper, type IconName } from '@/components/ui';
+import { Banner, Button, Card, Chip, Divider, IconCircle, Screen, Stepper, SwitchRow, type IconName } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { DEMO_MODE } from '@/lib/config';
 import { success, tap } from '@/lib/haptics';
+import { exportBackup, importBackup, pickBackupFile } from '@/lib/backup';
 import { fmt } from '@/lib/nutrition';
+import { reminderPlan, requestReminderPermission, syncReminders } from '@/lib/reminders';
 import {
   clearAllData,
   getApiKey,
   loadDemoData,
+  loadReceipts,
   loadSettings,
   loadUsage,
   resetUsage,
@@ -33,8 +36,8 @@ const CURRENCIES: [Currency, string][] = [
 ];
 
 const loadSettingsScreen = async () => {
-  const [apiKey, settings, usage] = await Promise.all([getApiKey(), loadSettings(), loadUsage()]);
-  return { apiKey, settings, usage };
+  const [apiKey, settings, usage, receipts] = await Promise.all([getApiKey(), loadSettings(), loadUsage(), loadReceipts()]);
+  return { apiKey, settings, usage, upcoming: reminderPlan(receipts).slice(0, 3) };
 };
 
 export default function SettingsScreen() {
@@ -43,12 +46,13 @@ export default function SettingsScreen() {
     apiKey: null as string | null,
     settings: DEFAULT_SETTINGS,
     usage: null as UsageTotals | null,
+    upcoming: [] as { date: Date; items: string[] }[],
   });
   const [keyInput, setKeyInput] = useState('');
   // Local draft while typing; falls back to the stored value.
   const [dietDraft, setDiet] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const { apiKey, settings, usage } = data;
+  const { apiKey, settings, usage, upcoming } = data;
   const diet = dietDraft ?? settings.diet;
 
   const inputStyle = [
@@ -79,6 +83,48 @@ export default function SettingsScreen() {
     const next = (has ? parts.filter((p) => p.toLowerCase() !== tag.toLowerCase()) : [...parts, tag]).join(', ');
     setDiet(null);
     update({ diet: next });
+  }
+
+  async function toggleReminders(on: boolean) {
+    if (on) {
+      const granted = await requestReminderPermission();
+      if (!granted) {
+        setToast(
+          Platform.OS === 'web'
+            ? 'Reminders work in the Android app, not in the browser.'
+            : 'Notifications are off for NutriTrack. Allow them in your phone settings and try again.',
+        );
+        return;
+      }
+    }
+    await update({ remindersEnabled: on });
+    await syncReminders();
+    setToast(on ? 'You will get a reminder at 17:00 on days when something should be used.' : 'Reminders are off.');
+  }
+
+  async function doExport() {
+    try {
+      const how = await exportBackup();
+      setToast(how === 'downloaded' ? 'Backup downloaded.' : 'Backup ready to save or send.');
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Could not export.');
+    }
+  }
+
+  async function doImport() {
+    try {
+      const text = await pickBackupFile();
+      if (!text) return;
+      const result = await importBackup(text);
+      await syncReminders();
+      success();
+      setToast(
+        `Imported ${result.receipts} receipt${result.receipts === 1 ? '' : 's'}, ${result.favorites} saved recipe${result.favorites === 1 ? '' : 's'} and ${result.shopping} shopping line${result.shopping === 1 ? '' : 's'}.`,
+      );
+      reload();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Could not import.');
+    }
   }
 
   function confirmClear() {
@@ -258,8 +304,37 @@ export default function SettingsScreen() {
         </Card>
       </Group>
 
+      <Group title="Reminders">
+        <Card>
+          <SwitchRow
+            label="Food to use soon"
+            detail="A notification at 17:00 on days when something in your kitchen is about to go off."
+            value={settings.remindersEnabled}
+            onChange={toggleReminders}
+          />
+          {settings.remindersEnabled && upcoming.length > 0 && (
+            <View style={styles.upcoming}>
+              {upcoming.map((u) => (
+                <ThemedText key={u.date.toISOString()} variant="caption" color="textSecondary">
+                  {u.date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}: {u.items.join(', ')}
+                </ThemedText>
+              ))}
+            </View>
+          )}
+          {settings.remindersEnabled && upcoming.length === 0 && (
+            <ThemedText variant="caption" color="textTertiary">
+              Nothing is close to its date in the next week.
+            </ThemedText>
+          )}
+        </Card>
+      </Group>
+
       <Group title="Data">
         <Card padded={false}>
+          <SettingsRow icon="download-outline" label="Export a backup" detail="All receipts, recipes and lists as one file" onPress={doExport} />
+          <Divider />
+          <SettingsRow icon="cloud-upload-outline" label="Import a backup" detail="Merges a NutriTrack backup file into this device" onPress={doImport} />
+          <Divider />
           <SettingsRow
             icon="sparkles"
             label="Load sample data"
@@ -408,4 +483,5 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', borderRadius: Radius.md, padding: 3 },
   segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: Radius.sm },
   about: { alignItems: 'center', gap: 4, marginTop: Spacing.four, paddingHorizontal: Spacing.six },
+  upcoming: { gap: 2 },
 });

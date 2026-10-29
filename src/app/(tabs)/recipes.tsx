@@ -23,6 +23,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { describeError, suggestRecipes } from '@/lib/claude';
 import { failure, success } from '@/lib/haptics';
 import { daysSince, pantryFrom, receiptsWithin, recipesMatchDiet, type PantryItem } from '@/lib/nutrition';
+import { syncReminders } from '@/lib/reminders';
 import {
   loadCooked,
   loadDemoData,
@@ -86,6 +87,7 @@ export default function RecipesScreen() {
 
   async function consume(item: PantryItem, consumed: boolean) {
     await setItemsConsumed([{ receiptId: item.receiptId, itemId: item.itemId }], consumed);
+    syncReminders();
     setUndo(consumed ? item : null);
     reload();
   }

@@ -22,6 +22,7 @@ import { itemEmoji } from '@/lib/categories';
 import { tap } from '@/lib/haptics';
 import { basketMetrics } from '@/lib/insights';
 import { fmt, money, priceCheck, recomputeReceipt } from '@/lib/nutrition';
+import { syncReminders } from '@/lib/reminders';
 import { deleteReceipt, getReceipt, loadSettings, updateReceipt } from '@/lib/storage';
 import { DEFAULT_SETTINGS, type Nutrition, type Receipt, type ReceiptItem } from '@/lib/types';
 
@@ -55,6 +56,7 @@ export default function ReceiptScreen() {
     async (change: (r: Receipt) => Receipt) => {
       const next = await updateReceipt(id, (r) => recomputeReceipt(change(r)));
       if (next) setData((d) => ({ ...d, receipt: next }));
+      syncReminders();
     },
     [id, setData],
   );
@@ -78,6 +80,7 @@ export default function ReceiptScreen() {
   function confirmDelete() {
     const run = async () => {
       await deleteReceipt(id);
+      syncReminders();
       router.back();
     };
     if (Platform.OS === 'web') {

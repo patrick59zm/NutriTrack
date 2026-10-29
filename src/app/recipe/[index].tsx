@@ -15,6 +15,7 @@ import { useFocusData } from '@/hooks/use-focus-data';
 import { useTheme } from '@/hooks/use-theme';
 import { success, tap } from '@/lib/haptics';
 import { EMPTY_NUTRITION, fmt, pantryFrom, type PantryItem } from '@/lib/nutrition';
+import { syncReminders } from '@/lib/reminders';
 import { recipeToText, shareText } from '@/lib/share';
 import {
   addToShopping,
@@ -119,6 +120,7 @@ export default function RecipeScreen() {
     const chosen = cooking?.chosen ?? new Set<string>();
     const refs = usedPantry.filter((p) => chosen.has(p.itemId)).map((p) => ({ receiptId: p.receiptId, itemId: p.itemId }));
     if (refs.length) await setItemsConsumed(refs, true);
+    syncReminders();
     await recordCooked(recipe!);
     setCooking(null);
     success();

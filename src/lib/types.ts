@@ -157,6 +157,8 @@ export type Settings = {
   householdSize: number;
   /** Longest cooking time wanted for recipe ideas, in minutes; null for no limit. */
   maxCookMinutes: number | null;
+  /** Daily notification when something in the kitchen is about to go off. */
+  remindersEnabled: boolean;
 };
 
 /** Swiss devices start with francs, everyone else with euros; both can be changed in Settings. */
@@ -177,4 +179,5 @@ export const DEFAULT_SETTINGS: Settings = {
   currency: defaultCurrency(),
   householdSize: 2,
   maxCookMinutes: null,
+  remindersEnabled: false,
 };
